@@ -20,21 +20,33 @@
         string(phrase.id, `${label}のID`); string(phrase.text, `${label}の歌詞`);
         if (ids.has(phrase.id)) fail(`フレーズID「${phrase.id}」が重複しています。`);
         ids.add(phrase.id);
-        for (const key of ['start', 'end']) {
+        // Legacy end is accepted but no longer controls playback or validation.
+        for (const key of ['start']) {
           if (phrase[key] == null) continue;
           if (typeof phrase[key] !== 'number' || !Number.isFinite(phrase[key])) fail(`${label}の${key}は有限の数値にしてください。`);
           if (phrase[key] < 0) fail(`${label}の時刻は0秒以上にしてください。`);
           if (phrase[key] > duration) fail(`${label}の時刻が音源の長さを超えています。`);
         }
-        if (isTimed(phrase) && phrase.start >= phrase.end) fail(`${label}の終了時刻は開始時刻より後にしてください。`);
         if (phrase.start != null) {
           if (previous && phrase.start < previous.start) fail(`${label}の時系列順序が不正です。`);
+          if (previous && phrase.start === previous.start) fail(`${label}の開始時刻が前の設定済みフレーズと重複しています。`);
           previous = phrase;
         }
         count++;
       });
     });
     if (!count) fail('フレーズを1つ以上登録してください。');
+    if (data.audioSources !== undefined) {
+      if (!Array.isArray(data.audioSources)) fail('audioSourcesは配列にしてください。');
+      const sourceIds = new Set();
+      for (const source of data.audioSources) {
+        if (!object(source)) fail('音源情報の形式が不正です。');
+        string(source.id, '音源ID'); string(source.name, '音源名');
+        if (sourceIds.has(source.id)) fail('音源IDが重複しています。');
+        sourceIds.add(source.id);
+        if (!Number.isFinite(source.offset)) fail('音源の補正値は有限の数値にしてください。');
+      }
+    }
     return data;
   }
   function parse(text, duration) {
@@ -47,9 +59,24 @@
     return `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
   }
   function flatten(song) { return song.sections.flatMap(section => section.phrases); }
-  function isTimed(phrase) { return !!phrase && Number.isFinite(phrase.start) && Number.isFinite(phrase.end); }
+  function isTimed(phrase) { return !!phrase && Number.isFinite(phrase.start); }
+  function timeline(song, duration, offset = 0) {
+    const rows = flatten(song);
+    return rows.map((p, i) => {
+      if (!isTimed(p)) return {...p, start:null, end:null, playable:false};
+      const next = rows.slice(i + 1).find(isTimed);
+      const start = Math.max(0, p.start + offset);
+      const end = Math.min(duration, next ? next.start + offset : duration);
+      return {...p, registeredStart:p.start, start, end, leadStart:Math.max(0, p.start + offset - 1), playable:start < duration && end > start};
+    });
+  }
+  function warnings(song, duration = Infinity, offset = 0) {
+    const rows = flatten(song), unset = rows.filter(p => !isTimed(p)).length;
+    const invalid = timeline(song, duration, offset).filter(p => isTimed(p) && !p.playable).length;
+    return [unset ? `${unset}行の開始時刻が未設定です。再生対象から除外し、次の設定済み行までを区間とします。` : '', invalid ? `${invalid}行がこの音源の再生範囲外です。補正値・音源を確認してください。` : ''].filter(Boolean).join(' ');
+  }
   function activeIndex(phrases, time, preferred = -1) {
-    const contains = p => isTimed(p) && time >= p.start && time < p.end;
+    const contains = p => isTimed(p) && p.playable !== false && time >= p.start && time < p.end;
     if (contains(phrases[preferred])) return preferred;
     let index = -1;
     phrases.forEach((p, i) => { if (contains(p) && (index < 0 || p.start > phrases[index].start)) index = i; });
@@ -85,9 +112,9 @@
       this.audio.removeAttribute('src'); this.audio.load();
       if (this.url) URL.revokeObjectURL(this.url); this.url = null; this.update();
     }
-    load(file, onReady) {
+    load(file, onReady, fileName = file.name) {
       this.reset();
-      if (!/\.(mp3|wav)$/i.test(file.name)) { this.error('対応する音源形式はWAV／MP3です。'); return; }
+      if (!/\.(mp3|wav)$/i.test(fileName || '')) { this.error('対応する音源形式はWAV／MP3です。'); return; }
       const generation = this.generation;
       const ready = () => {
         if (generation !== this.generation || !Number.isFinite(this.audio.duration) || this.audio.duration <= 0) return;
@@ -109,7 +136,7 @@
     }
     seek(time) { this.stopAt = null; if (this.ready) this.audio.currentTime = time; this.update(); }
   }
-  const api = { validate, parse, format, flatten, isTimed, activeIndex, AudioController };
+  const api = { validate, parse, format, flatten, isTimed, timeline, warnings, activeIndex, AudioController };
   if (typeof module !== 'undefined') module.exports = api;
   root.Phrase = api;
 })(globalThis);
