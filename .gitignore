@@ -1,0 +1,14 @@
+node_modules/
+dist/
+private/
+publish/
+.env
+.env.*
+!.env.example
+*.log
+*.mp3
+*.wav
+*.m4a
+*.flac
+*.ogg
+.DS_Store

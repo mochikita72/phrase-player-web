@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "songId": "practice-sample",
+  "title": "ひかりの練習曲（架空）",
+  "artist": "サンプル",
+  "sections": [
+    {"name": "Aメロ", "phrases": [
+      {"id": "p001", "text": "朝のひかりに　声をのせて", "start": 0, "end": 2.5},
+      {"id": "p002", "text": "ひとつ深呼吸　空を見上げる", "start": 3, "end": 5.5}
+    ]},
+    {"name": "サビ", "phrases": [
+      {"id": "p003", "text": "ここからまた　歌いはじめよう", "start": 6, "end": 9}
+    ]}
+  ]
+}
