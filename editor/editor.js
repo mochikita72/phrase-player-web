@@ -124,6 +124,7 @@ $('generate').addEventListener('click', () => { const lines = $('bulk').value.sp
 $('add-phrase').addEventListener('click', () => { addPhrase(''); changed(); render(); window.editorView?.('edit'); $('text').focus(); });
 for(const key of ['text', 'start']) $(key).addEventListener('input', () => {
   const loc = locationOfSelection(); if(!loc) return; loc.p[key] = key === 'text' ? $(key).value : $(key).value === '' ? null : Number($(key).value); changed(); renderList();
+  $('start-minus').disabled=$('start-plus').disabled=!Number.isFinite(loc.p.start);
   const timing=selectionTiming();$('auto-end').textContent=timing?.playable?`終了（自動・選択音源上）：${Number.isFinite(timing.end)?timing.end.toFixed(3)+'秒':'音源の末尾'}`:'開始時刻または音源範囲を確認してください。';
 });
 function commitStart(){const loc=locationOfSelection();if(!loc)return;if(EditorModel.sortSection(song.sections[loc.s]))changed();renderList();renderSelection();}

@@ -36,5 +36,7 @@
   const measure=()=>document.documentElement.style.setProperty('--workspace-top',workspace.getBoundingClientRect().top+window.scrollY+'px');
   new ResizeObserver(measure).observe(document.querySelector('.studio-header'));
   new ResizeObserver(measure).observe(document.querySelector('.feedback'));
+  const audition=document.querySelector('.audio-panel');
+  new ResizeObserver(()=>document.documentElement.style.setProperty('--audition-height',audition.getBoundingClientRect().height+'px')).observe(audition);
   window.addEventListener('resize',measure);measure();
 })();
