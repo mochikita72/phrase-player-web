@@ -5,10 +5,10 @@ for(const first of ['json','sound'])test(`player reads ${first} first; lead-in, 
   assert.equal(a.elements.player.hidden,false);assert.equal(a.elements.title.textContent,sample.title);
   const second=a.elements.lyrics.children[0].children[2];await second.click();assert.equal(a.audio.currentTime,2);
   a.audio.currentTime=4;await second.click();assert.equal(a.audio.currentTime,2);
-  await a.radios[1].fire('change');assert.equal(a.read('engine.stopAt'),6);
-  a.audio.currentTime=6.1;await a.audio.fire('timeupdate');assert.equal(a.audio.paused,true);assert.equal(a.audio.currentTime,6);
-  await a.elements.next.click();assert.equal(a.audio.currentTime,5);assert.equal(a.read('engine.stopAt'),10);
-  a.elements.seek.value='1';await a.elements.seek.fire('input');assert.equal(a.read('engine.stopAt'),3);
+  await a.radios[1].fire('change');assert.equal(a.read('phrases[chosen].end'),6);
+  a.audio.currentTime=6.1;await a.audio.fire('timeupdate');assert.equal(a.audio.paused,false);assert.equal(a.audio.currentTime,3);
+  await a.elements.next.click();assert.equal(a.audio.currentTime,5);assert.equal(a.read('phrases[chosen].end'),10);
+  a.elements.seek.value='1';await a.elements.seek.fire('input');assert.equal(a.read('phrases[chosen].end'),3);
   await a.radios[0].fire('change');assert.equal(a.read('engine.stopAt'),null);
 });
 test('saved song and audio restore without file selection; editor update returns to player',async()=>{
@@ -30,8 +30,8 @@ test('source switch preserves logical position, adds offsets without lead-in, an
   a.read("record.audios.push({...record.audios[0],id:'backing',name:'伴奏',offset:2});sources.render()");
   await a.radios[1].fire('change');await a.elements.lyrics.children[0].children[2].click();a.audio.currentTime=4;
   a.elements['source-select'].value='backing';await a.elements['source-select'].fire('change');await a.settle();
-  assert.equal(a.audio.currentTime,6);assert.equal(a.audio.paused,false);assert.equal(a.read('engine.stopAt'),8);
-  await a.elements.lyrics.children[0].children[2].click();assert.equal(a.audio.currentTime,4);assert.equal(a.read('engine.stopAt'),8);
+  assert.equal(a.audio.currentTime,6);assert.equal(a.audio.paused,false);assert.equal(a.read('phrases[chosen].end'),8);
+  await a.elements.lyrics.children[0].children[2].click();assert.equal(a.audio.currentTime,4);assert.equal(a.read('phrases[chosen].end'),8);
   a.elements['source-select'].value='audio-main';await a.elements['source-select'].fire('change');await a.settle();assert.equal(a.audio.currentTime,2);
 });
 test('start capture subtracts source offset and preview uses next start across sections',async()=>{
@@ -80,7 +80,7 @@ test('all-unset draft exports and saves, but segment playback gives guidance',as
   const data=structuredClone(sample);data.sections.forEach(s=>s.phrases.forEach(p=>{p.start=null;}));
   const a=await app('player');await a.json(data);await a.sound();await a.elements['save-library'].click();
   assert.equal(a.read('record.revision'),1);await a.elements.play.click();assert.equal(a.audio.paused,false);
-  await a.radios[1].fire('change');await a.elements.play.click();assert.match(a.elements.error.textContent,/開始時刻/);
+  await a.radios[1].fire('change');assert.equal(a.audio.paused,false);await a.elements.play.click();assert.equal(a.audio.paused,true);await a.elements.play.click();assert.match(a.elements.error.textContent,/開始時刻/);
 });
 test('editor sorts only on time commit and preserves selected ID/text and automatic end',async()=>{
   const a=await app('editor');await a.json();await a.elements['add-phrase'].click();

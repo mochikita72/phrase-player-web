@@ -28,17 +28,20 @@ const sources=Sources.mount({container:$('source-manager'),select:$('source-sele
   else if(kind==='offset'){const logical=audio.currentTime-(before??currentOffset);currentOffset=Sources.selected(record)?.offset||0;engine.seek(Math.max(0,Math.min(audio.duration||0,logical+currentOffset)));rebuild();if(mode==='segment')arm();}
 }});
 function update(){
+  const loop=phrases[chosen];
+  if(mode==='segment'&&engine.ready&&!audio.paused&&loop?.playable&&audio.currentTime>=loop.end)audio.currentTime=loop.start;
+  if(mode==='segment'&&chosen<0)chosen=Phrase.activeIndex(phrases,audio.currentTime);
   $('current').textContent=Phrase.format(audio.currentTime);$('duration').textContent=Phrase.format(audio.duration);
   $('seek').max=Number.isFinite(audio.duration)?audio.duration:0;$('seek').value=audio.currentTime||0;
-  $('play').textContent=audio.paused?'▶':'⏸';$('play').title=audio.paused?'再生':'一時停止';$('play').setAttribute('aria-label',$('play').title);$('play').disabled=$('seek').disabled=!engine.ready;
+  $('play').textContent='';$('play').classList.toggle('is-playing',!audio.paused);$('play').title=audio.paused?'再生':'一時停止';$('play').setAttribute('aria-label',$('play').title);$('play').disabled=$('seek').disabled=!engine.ready;
   $('previous').disabled=$('next').disabled=!engine.ready||!phrases.some(p=>p.playable);
-  $('compact-play').textContent=audio.paused?'▶':'⏸';$('compact-play').setAttribute('aria-label',audio.paused?'再生':'一時停止');$('compact-play').title=$('play').title;$('compact-play').disabled=$('play').disabled;
+  $('compact-play').textContent='';$('compact-play').classList.toggle('is-playing',!audio.paused);$('compact-play').setAttribute('aria-label',audio.paused?'再生':'一時停止');$('compact-play').title=$('play').title;$('compact-play').disabled=$('play').disabled;
   $('compact-previous').disabled=$('compact-next').disabled=$('previous').disabled;
   window.refreshCompactPlayer?.();
   document.body.classList.toggle('player-open',!$('player').hidden);
   let index=Phrase.activeIndex(phrases,audio.currentTime,mode==='segment'?chosen:-1);
-  if(chosen>=0 && phrases[chosen]?.playable && audio.currentTime>=phrases[chosen].leadStart && audio.currentTime<phrases[chosen].start)index=chosen;
-  buttons.forEach((b,i)=>{b.classList.toggle('selected',i===chosen);b.setAttribute('aria-pressed',String(i===chosen));b.classList.toggle('active',i===index);if(i===index)b.setAttribute('aria-current','true');else b.removeAttribute('aria-current');});
+  buttons.forEach((b,i)=>{b.classList.toggle('selected',false);b.setAttribute('aria-pressed',String(i===index));b.classList.toggle('active',i===index);if(i===index)b.setAttribute('aria-current','true');else b.removeAttribute('aria-current');});
+  window.followPlayerPhrase?.(buttons[index],!audio.paused);
 }
 function rebuild(){
   if(!record)return;
@@ -73,8 +76,13 @@ function renderSourceButtons(){
   if(tracks.length<1||tracks.length>3)return;
   for(const track of tracks){const button=document.createElement('button');button.className='secondary';button.textContent=track.name;button.title=track.name;button.setAttribute('aria-pressed',String(track.id===record.activeAudioId));button.addEventListener('click',()=>switchSource(track.id));$('source-buttons').append(button);}
 }
-function playPhrase(index){const p=phrases[index];if(!p?.playable||!engine.ready)return;chosen=index;error();engine.play(p.leadStart,mode==='segment'?p.end:null);}
-function arm(){const selected=phrases[chosen];const p=selected?.playable&&audio.currentTime>=selected.leadStart&&audio.currentTime<selected.end?selected:phrases[Phrase.activeIndex(phrases,audio.currentTime)];engine.stopAt=p?.end??null;if(!p)audio.pause();}
+function playPhrase(index){const p=phrases[index];if(!p?.playable||!engine.ready)return;chosen=index;error();window.resumePlayerFollow?.();engine.play(p.leadStart);}
+function arm(){
+  engine.stopAt=null;
+  const p=phrases[chosen];
+  if(!p?.playable||audio.currentTime<p.leadStart||audio.currentTime>=p.end)chosen=Phrase.activeIndex(phrases,audio.currentTime);
+}
+audio.addEventListener('ended',()=>{const p=phrases[chosen];if(mode==='segment'&&engine.ready&&p?.playable&&audio.currentTime>=p.end)engine.play(p.start);});
 function switchSource(id, restore=false){
   if(!record)return;
   const source=record.audios.find(a=>a.id===id)||Sources.selected(record);
@@ -86,8 +94,8 @@ function switchSource(id, restore=false){
   engine.load(source.file,()=>{
     source.duration=audio.duration;rebuild();
     const time=Math.max(0,Math.min(audio.duration,point.logical+currentOffset));engine.seek(time);
-    if(mode==='segment')arm();const end=engine.stopAt;
-    if(point.playing && time<audio.duration && (mode!=='segment'||end!==null))engine.play(time,end);
+    if(mode==='segment')arm();
+    if(point.playing && time<audio.duration)engine.play(time);
     switchPoint=null;status(dirty?'未保存の変更があります。':'');update();
   },source.fileName);
 }
@@ -162,12 +170,8 @@ $('edit').addEventListener('click',async()=>{
 });
 $('play').addEventListener('click',()=>{
   if(!engine.ready)return;if(!audio.paused){audio.pause();return;}error();
-  if(mode==='segment'){
-    if(chosen>=0&&phrases[chosen]?.playable&&audio.currentTime>=phrases[chosen].leadStart&&audio.currentTime<phrases[chosen].end){engine.play(audio.currentTime,phrases[chosen].end);return;}
-    const ordered=phrases.flatMap((p,i)=>p.playable?[i]:[]).sort((a,b)=>phrases[a].start-phrases[b].start);
-    const index=Phrase.activeIndex(phrases,audio.currentTime);const next=index>=0?index:ordered.find(i=>phrases[i].start>=audio.currentTime);const fallback=next??ordered[0]??-1;
-    if(fallback<0)return error('開始時刻が設定された再生可能なフレーズがありません。');playPhrase(fallback);
-  }else engine.play(audio.ended?0:audio.currentTime);
+  if(mode==='segment'&&!phrases.some(p=>p.playable))return error('開始時刻が設定されたフレーズがありません。');
+  if(mode==='segment')arm();engine.play(audio.currentTime);
 });
 $('seek').addEventListener('input',()=>{chosen=-1;engine.seek(Number($('seek').value));if(mode==='segment')arm();});
 for(const radio of document.querySelectorAll('[name=mode]'))radio.addEventListener('change',()=>{mode=radio.value;engine.stopAt=null;if(mode==='segment')arm();});

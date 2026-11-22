@@ -22,7 +22,7 @@ test('JSON result is available inside the dialog and summary is separate from lo
   const html=fs.readFileSync(__dirname+'/../editor/index.html','utf8');assert.match(html,/<details[^>]*class="phrase-details"[\s\S]*?id="split"/);assert.match(html,/<details id="save-menu"[\s\S]*?id="json-only"/);assert.match(html,/<dialog id="song-dialog"[\s\S]*?id="json-import-result"/);
 });
 test('Player icons expose action labels, mode controls remain direct, artist is mirrored',async()=>{
-  const player=await app('player');await player.json();await player.sound();assert.equal(player.elements['compact-artist'].textContent,sample.artist);assert.equal(player.elements.play.attributes['aria-label'],'再生');await player.elements.play.click();assert.equal(player.elements.play.attributes['aria-label'],'一時停止');assert.equal(player.elements.play.textContent,'⏸');
+  const player=await app('player');await player.json();await player.sound();assert.equal(player.elements['compact-artist'].textContent,sample.artist);assert.equal(player.elements.play.attributes['aria-label'],'再生');await player.elements.play.click();assert.equal(player.elements.play.attributes['aria-label'],'一時停止');assert.equal(player.elements.play.classes.has('is-playing'),true);
   const html=fs.readFileSync(__dirname+'/../player/index.html','utf8');assert.ok(!html.includes('class="playback-options"'));assert.match(html,/title="前のフレーズ"/);
   await player.elements['save-library'].click();await player.elements.change.click();await player.settle();const row=player.elements['song-cards'].children[0];assert.equal(row.children[0].children[1].textContent,' – ');assert.equal(row.children[3].children[0].textContent,'↑');assert.equal(row.children[3].children[1].textContent,'↓');
 });
