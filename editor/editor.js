@@ -7,6 +7,7 @@ let savedVersion=-1, backupState='JSONは別途書き出してください', not
 function notice(message,temporary=true){clearTimeout(noticeTimer);$('status').textContent=message;if(temporary)noticeTimer=setTimeout(()=>{$('status').textContent='';},7000);}
 function documentState(){
   $('editing-title').textContent=song.title.trim()||'新しい曲';
+  $('editing-artist').textContent=song.artist;
   const saved=!!record.revision&&savedVersion===editVersion;
   $('song-summary').textContent=`${Phrase.flatten(song).length}フレーズ · ${record.audios.length}音源`;
   $('document-state').textContent=saving?'保存中…':saveFailed?'保存失敗 · 未保存の変更あり':saved?'✓ 保存済み':'● 未保存の変更あり';
@@ -59,7 +60,7 @@ function renderSectionManager(){
     const name=document.createElement('input');name.value=section.name;label.append(name);
     name.addEventListener('change',()=>{if(!name.value.trim()){name.value=section.name;return error('名前を入力してください。');}section.name=name.value.trim();changed();render();});
     const actions=document.createElement('div');actions.className='actions';
-    for(const [direction,text] of [[-1,'上へ'],[1,'下へ']]){const button=document.createElement('button');button.className='secondary';button.textContent=text;button.disabled=index+direction<0||index+direction>=song.sections.length;button.setAttribute('aria-label',section.name+'を'+text);button.addEventListener('click',()=>{sectionIndex=EditorModel.moveSection(song,index,direction);collapsed.clear();changed();render();});actions.append(button);}
+    for(const [direction,text] of [[-1,'上へ'],[1,'下へ']]){const button=document.createElement('button');button.className='secondary';button.textContent=direction<0?'⌃':'⌄';button.className='secondary section-move';button.title=text;button.disabled=index+direction<0||index+direction>=song.sections.length;button.setAttribute('aria-label',section.name+'を'+text);button.addEventListener('click',()=>{sectionIndex=EditorModel.moveSection(song,index,direction);collapsed.clear();changed();render();});actions.append(button);}
     const destination=document.createElement('select');destination.setAttribute('aria-label',section.name+'の削除時のフレーズ移動先');
     song.sections.forEach((other,i)=>{if(i===index)return;const option=document.createElement('option');option.value=i;option.textContent=other.name;destination.append(option);});
     destination.value=index===0?1:index-1;
@@ -74,7 +75,7 @@ function renderSectionManager(){
   });
 }
 function renderList() {
-  const scroll=window.scrollY;
+  const scroll=window.scrollY, listScroll=$('phrase-list-pane').scrollTop;
   const warning=EditorModel.sectionWarnings(song);$('order-warning').textContent=warning;$('order-warning').hidden=!warning;
   $('list').replaceChildren();
   song.sections.forEach((section, s) => {
@@ -82,20 +83,28 @@ function renderList() {
     section.phrases.forEach(p => {
       const button = document.createElement('button'); button.className = 'phrase'; button.classList.toggle('active', p.id === selected); button.setAttribute('aria-pressed', String(p.id === selected));
       const text = document.createElement('span'); text.textContent = p.text || '（歌詞未入力）'; const time = document.createElement('small'); time.textContent = `開始 ${p.start ?? '未設定'} 秒`; text.append(time); button.append(text);
-      button.addEventListener('click', () => {
-        selected = p.id; sectionIndex = s; engine.stopAt = null; render();
-        const timing=selectionTiming();if(engine.ready&&timing?.playable)engine.play(timing.leadStart);
-        if(window.matchMedia?.('(max-width: 800px)').matches) document.querySelector('.edit-panel').scrollIntoView({block:'start'});
-      }); $('list').append(button);
+      button.addEventListener('click', () => selectPhrase(p.id)); $('list').append(button);
     });
   });
+  if(Number.isFinite(listScroll))$('phrase-list-pane').scrollTop=listScroll;
   if(Number.isFinite(scroll)&&window.scrollY!==scroll)window.scrollTo(0,scroll);
 }
+function selectPhrase(id) {
+  if(!Phrase.flatten(song).some(p=>p.id===id))return;
+  selected=id;sectionIndex=locationOfSelection().s;engine.stopAt=null;render();
+  const timing=selectionTiming();if(engine.ready&&timing?.playable)engine.play(timing.leadStart);
+  window.editorView?.('edit');
+}
+function movePhrase(direction){const rows=Phrase.flatten(song),index=rows.findIndex(p=>p.id===selected);if(index>=0&&rows[index+direction])selectPhrase(rows[index+direction].id);}
+$('previous-phrase').addEventListener('click',()=>movePhrase(-1));
+$('next-phrase').addEventListener('click',()=>movePhrase(1));
 function renderSelection() {
   const loc = locationOfSelection(); $('phrase-fields').disabled = !loc;
+  const rows=Phrase.flatten(song), index=rows.findIndex(p=>p.id===selected);
+  $('previous-phrase').disabled=index<=0; $('next-phrase').disabled=index<0||index===rows.length-1;
   $('selection').textContent = loc ? song.sections[loc.s].name : 'フレーズを追加・選択してください。';
   for(const key of ['text','start']) $(key).value = loc ? loc.p[key] ?? '' : '';
-  const timing=selectionTiming();$('auto-end').textContent=timing?.playable?`終了：${Number.isFinite(timing.end)?timing.end.toFixed(3)+'秒':'音源の末尾'}`:'開始時刻または音源の範囲を確認してください。';
+  const timing=selectionTiming();$('auto-end').textContent=timing?.playable?`終了（自動・選択音源上）：${Number.isFinite(timing.end)?timing.end.toFixed(3)+'秒':'音源の末尾'}`:'開始時刻または音源の範囲を確認してください。';
   if(loc){$('phrase-section').value=loc.s;$('boundary-section').value=loc.s||Math.min(1,song.sections.length-1);}
   $('set-boundary').disabled=!loc||song.sections.length<2;
   $('start-minus').disabled=$('start-plus').disabled=!loc||!Number.isFinite(loc.p.start);
@@ -112,7 +121,7 @@ $('add-section').addEventListener('click', () => { song.sections.push({name:$('s
 $('rename-section').addEventListener('click', () => { const name = $('section-name').value.trim(); if(!name) return error('セクション名を入力してください。'); song.sections[sectionIndex].name = name; changed(); render(); });
 function addPhrase(text) { const p = {id:EditorModel.id(song), text, start:null}; song.sections[sectionIndex].phrases.push(p); selected = p.id; }
 $('generate').addEventListener('click', () => { const lines = $('bulk').value.split(/\r?\n/).map(x => x.trim()).filter(Boolean); if(!lines.length) return error('歌詞を入力してください。'); lines.forEach(addPhrase); $('bulk').value = ''; changed(); render(); });
-$('add-phrase').addEventListener('click', () => { addPhrase(''); changed(); render(); $('text').focus(); });
+$('add-phrase').addEventListener('click', () => { addPhrase(''); changed(); render(); window.editorView?.('edit'); $('text').focus(); });
 for(const key of ['text', 'start']) $(key).addEventListener('input', () => {
   const loc = locationOfSelection(); if(!loc) return; loc.p[key] = key === 'text' ? $(key).value : $(key).value === '' ? null : Number($(key).value); changed(); renderList();
   const timing=selectionTiming();$('auto-end').textContent=timing?.playable?`終了（自動・選択音源上）：${Number.isFinite(timing.end)?timing.end.toFixed(3)+'秒':'音源の末尾'}`:'開始時刻または音源範囲を確認してください。';
@@ -136,11 +145,27 @@ async function saveEditor(){
   finally{saving=false;$('export').disabled=false;documentState();}
 }
 $('export').addEventListener('click',saveEditor);
-$('back-player').addEventListener('click',async event=>{
-  if(!dirty&&record.revision&&!saving)return;
-  event.preventDefault();if(saving)return;
-  if(!confirm('現在の曲を保存してPlayerへ移動しますか？JSONも書き出します。'))return;
-  if(await saveEditor())location.href=$('back-player').href;
+let leaving=false, leaveBusy=false;
+function hasDrafts(){return !!($('bulk').value.trim()||$('ocr-result').value.trim()||window.editorOCR?.hasDraft());}
+function leaveDestination(){return record.revision?'../player/?song='+encodeURIComponent(record.id):'../player/?view=library';}
+function finishLeaving(){leaving=true;window.editorLeaving=true;audio.pause();location.href=leaveDestination();}
+function leaveDescription(){
+  $('leave-description').textContent='「'+(song.title||'新しい曲')+'」の未保存の歌詞・時刻・音源設定を破棄すると元に戻せません。'+(record.revision?'最後に端末内へ保存した曲をPlayerで開きます。':'未保存の新規曲を破棄すると曲一覧に戻ります。')+(hasDrafts()?' 未追加の歌詞・OCRの下書きも失われます。':'');
+}
+$('back-player').addEventListener('click',event=>{
+  event.preventDefault();if(saving||leaveBusy)return;
+  if(!dirty&&!hasDrafts()){finishLeaving();return;}
+  leaveDescription();$('leave-result').textContent='';$('leave-dialog').showModal();
+});
+$('leave-cancel').addEventListener('click',()=>{if(!saving&&!leaveBusy)$('leave-dialog').close();});
+$('leave-discard').addEventListener('click',()=>{if(!saving&&!leaveBusy)finishLeaving();});
+$('leave-dialog').addEventListener('cancel',event=>{if(saving||leaveBusy)event.preventDefault();});
+$('leave-save').addEventListener('click',async()=>{
+  if(saving||leaveBusy)return;leaveBusy=true;
+  for(const id of ['leave-save','leave-discard','leave-cancel'])$(id).disabled=true;
+  try{if(await saveEditor()){finishLeaving();}else{leaveDescription();$('leave-result').textContent=$('status').textContent||'保存できませんでした。編集内容は保持しています。';}}
+  catch(e){$('leave-result').textContent=e.message;}
+  finally{leaveBusy=false;for(const id of ['leave-save','leave-discard','leave-cancel'])$(id).disabled=false;}
 });
 $('json-only').addEventListener('click',()=>{$('save-menu').open=false;try{record.song=song;Library.download(record);backupState='JSON出力開始・保存先を確認';documentState();notice('JSONのダウンロードを開始しました。端末内データは更新していません。');}catch(e){backupState='JSON書き出し失敗';documentState();error(e.message);}});
 $('json-file').addEventListener('change', async event => {
@@ -155,7 +180,7 @@ $('json-file').addEventListener('change', async event => {
   } catch(e) { if(generation === importGeneration) error(e.message); }
   finally { event.target.value = ''; }
 });
-window.addEventListener('beforeunload', event => { if(dirty || saving || $('bulk').value.trim()) { event.preventDefault(); event.returnValue = ''; } });
+window.addEventListener('beforeunload', event => { if(!leaving && (dirty || saving || hasDrafts())) { event.preventDefault(); event.returnValue = ''; } });
 async function restore(){
   const id=new URLSearchParams(location.search).get('song');if(!id)return;const version=editVersion,generation=++importGeneration;
   try{const saved=await Library.get(id);if(version!==editVersion||generation!==importGeneration)return;if(!saved)throw new Error('保存曲が見つかりません。元のJSONを読み込んでください。');Phrase.validate(saved.song);record=saved;record.activeAudioId=record.audios[0]?.id||'';song=record.song;sectionIndex=0;selected=Phrase.flatten(song)[0]?.id||null;dirty=false;saveFailed=false;savedVersion=editVersion;backupState='JSONの保管状況は別途確認';metadata();render();sources.render();switchSource(record.activeAudioId,true);$('status').textContent='';}catch(e){error(e.message);}

@@ -2,6 +2,7 @@
 (() => {
   'use strict';
   const get = id => document.getElementById(id);
+  let imageDraft = false;
   let imageFile = null, imageURL = null, selection = 0, job = null, library = null;
   const say = text => { get('ocr-status').textContent = text; };
   function busy(value) {
@@ -31,7 +32,7 @@
       if (ticket !== selection) { URL.revokeObjectURL(url); return; }
       if (image.naturalWidth * image.naturalHeight > 20000000) throw new Error('画像が大きすぎます。2000万画素以下に切り取ってください。');
       if (imageURL) URL.revokeObjectURL(imageURL);
-      imageFile = file; imageURL = url;
+      imageFile = file; imageURL = url; imageDraft = true;
       get('ocr-image').src = url; get('ocr-image').hidden = false; busy(false);
       say('画像を読み込みました。「文字起こし」を押してください。');
     } catch(error) { URL.revokeObjectURL(url); if(ticket === selection) say(error.message); }
@@ -91,11 +92,12 @@
     const text = get('ocr-result').value.trim(); if(!text) { say('読み取り結果が空です。'); return; }
     const bulk = get('bulk'); bulk.value = [bulk.value.trimEnd(), text].filter(Boolean).join('\n');
     bulk.dispatchEvent(new Event('input', {bubbles:true}));
-    get('ocr-result').value = ''; get('ocr-output').hidden = true;
+    get('ocr-result').value = ''; get('ocr-output').hidden = true; imageDraft = false;
     say('歌詞欄に追加しました。改行を確認し「選択セクションに追加」を押してください。'); bulk.focus();
   });
+  window.editorOCR={hasDraft:()=>!!(job || imageDraft || get('ocr-result').value.trim())};
   window.addEventListener('beforeunload', event => {
-    if(job || get('ocr-result').value.trim()) { event.preventDefault(); event.returnValue = ''; }
+    if(!window.editorLeaving && (job || get('ocr-result').value.trim())) { event.preventDefault(); event.returnValue = ''; }
   });
   window.addEventListener('pagehide', () => { cancel(); if(imageURL) URL.revokeObjectURL(imageURL); imageURL = null; imageFile = null; get('ocr-image').hidden = true; busy(false); });
 })();
