@@ -9,5 +9,5 @@ for(const dialog of document.querySelectorAll('dialog')){
   dialog.addEventListener('close',()=>{messageHome.append(message);dialog.opener?.focus({preventScroll:true});window.scrollTo(0,dialog.returnScroll||0);});
 }
 const panel=document.querySelector('.audio-panel');
-new IntersectionObserver(([entry])=>panel.classList.toggle('compact',!entry.isIntersecting),{threshold:0}).observe(document.getElementById('audio-sentinel'));
+// A stable height avoids sticky/scroll-anchoring feedback at the boundary.
 new ResizeObserver(()=>document.documentElement.style.setProperty('--audio-height',panel.getBoundingClientRect().height+'px')).observe(panel);

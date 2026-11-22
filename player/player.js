@@ -36,7 +36,13 @@ function rebuild(){
   $('phrase-note').textContent=phrases.length?Phrase.warnings(record.song,engine.ready?audio.duration:Infinity,currentOffset):'フレーズはまだありません。音源の再生は利用できます。歌詞はEditorで追加できます。';
   const available=phrases.some(p=>p.playable);for(const radio of document.querySelectorAll('[name=mode]'))radio.disabled=!available;
   if(!available){mode='continuous';document.querySelectorAll('[name=mode]')[0].checked=true;engine.stopAt=null;}
+  renderSourceButtons();$('screen-nav').hidden=!$('library-view').hidden;
   $('player').hidden=!$('library-view').hidden;update();
+}
+function renderSourceButtons(){
+  const tracks=record?.audios||[];$('source-picker').hidden=tracks.length<=3;$('source-buttons').hidden=tracks.length<2||tracks.length>3;$('source-buttons').replaceChildren();
+  if(tracks.length<2||tracks.length>3)return;
+  for(const track of tracks){const button=document.createElement('button');button.className='secondary';button.textContent=track.name;button.title=track.name;button.setAttribute('aria-pressed',String(track.id===record.activeAudioId));button.addEventListener('click',()=>switchSource(track.id));$('source-buttons').append(button);}
 }
 function playPhrase(index){const p=phrases[index];if(!p?.playable||!engine.ready)return;chosen=index;error();engine.play(p.leadStart,mode==='segment'?p.end:null);}
 function arm(){const selected=phrases[chosen];const p=selected?.playable&&audio.currentTime>=selected.leadStart&&audio.currentTime<selected.end?selected:phrases[Phrase.activeIndex(phrases,audio.currentTime)];engine.stopAt=p?.end??null;if(!p)audio.pause();}
@@ -61,7 +67,7 @@ async function refreshList(){
     for(const song of songs){const option=document.createElement('option');option.value=song.id;option.textContent=`${song.title} — ${song.artist}`;$('song-select').append(option);}
     $('song-select').value=record?.id||'';
     $('song-cards').replaceChildren();$('empty-library').hidden=songs.length>0;
-    for(const song of songs){const row=document.createElement('article');row.className='card song-card';const choose=document.createElement('button');choose.className='secondary song-choice';choose.textContent=(song.title||'無題の曲')+' — '+(song.artist||'アーティスト未設定');choose.addEventListener('click',()=>openSaved(song.id));const remove=document.createElement('button');remove.className='secondary';remove.textContent='削除';remove.setAttribute('aria-label',(song.title||'無題の曲')+'を削除');remove.addEventListener('click',async()=>{if(!confirm('「'+(song.title||'無題の曲')+'」と保存音源をこの端末から削除しますか？書き出したJSONや元の音源ファイルには影響しません。'))return;remove.disabled=true;try{await Library.remove(song.id,song.revision);if(record?.id===song.id){engine.reset();record=null;phrases=[];buttons=[];dirty=false;$('open-editor').href='../editor/';}await refreshList();status('曲と保存音源を削除しました。');}catch(e){error(e.message);}finally{remove.disabled=false;}});row.append(choose,remove);$('song-cards').append(row);}
+    for(const song of songs){const row=document.createElement('article');row.className='card song-card';const choose=document.createElement('button');choose.className='secondary song-choice';choose.textContent=(song.title||'無題の曲')+' — '+(song.artist||'アーティスト未設定');choose.addEventListener('click',()=>openSaved(song.id));const remove=document.createElement('button');remove.className='secondary';remove.textContent='削除';remove.setAttribute('aria-label',(song.title||'無題の曲')+'を削除');remove.addEventListener('click',async()=>{if(!confirm('「'+(song.title||'無題の曲')+'」と保存音源をこの端末から削除しますか？書き出したJSONや元の音源ファイルには影響しません。'))return;remove.disabled=true;try{await Library.remove(song.id,song.revision);if(record?.id===song.id){engine.reset();record=null;phrases=[];buttons=[];dirty=false;$('open-editor').href='../editor/';}await refreshList();status('曲と保存音源を削除しました。');}catch(e){error(e.message);}finally{remove.disabled=false;}});const edit=document.createElement('a');edit.className='row-edit';edit.textContent='編集';edit.href='../editor/?song='+encodeURIComponent(song.id);edit.setAttribute('aria-label',(song.title||'無題の曲')+'を編集');row.append(choose,remove,edit);$('song-cards').append(row);}
   }catch(e){status(e.message);}
 }
 function canLeave(){return !saving&&(!dirty||confirm('未保存の変更があります。移動すると変更が失われます。続けますか？'));}
@@ -77,7 +83,7 @@ $('new-song').addEventListener('click',()=>{
   if(!canLeave())return;viewGeneration++;importGeneration++;audioGeneration++;engine.reset();record=null;phrases=[];buttons=[];dirty=false;chosen=-1;pendingAudio=null;switchPoint=null;currentOffset=0;
   $('player').hidden=true;$('manage').open=true;$('audio-file').value=$('json-file').value='';$('audio-status').textContent='音源を選択してください';$('json-status').textContent='JSONを選択してください';sources.render();status('JSONと音源を選択してください。');error();
 });
-function showLibrary(){audio.pause();$('library-view').hidden=false;$('player').hidden=true;error();void refreshList();window.scrollTo(0,0);}
+function showLibrary(){viewGeneration++;$('screen-nav').hidden=true;audio.pause();$('library-view').hidden=false;$('player').hidden=true;error();void refreshList();window.scrollTo(0,0);}
 $('change').addEventListener('click',event=>{event.preventDefault?.();showLibrary();});
 $('reload-library').addEventListener('click',refreshList);
 $('open-editor').addEventListener('click',event=>{if(dirty||saving){event.preventDefault?.();$('edit').click();}});
@@ -127,7 +133,8 @@ $('play').addEventListener('click',()=>{
   if(!engine.ready)return;if(!audio.paused){audio.pause();return;}error();
   if(mode==='segment'){
     if(chosen>=0&&phrases[chosen]?.playable&&audio.currentTime>=phrases[chosen].leadStart&&audio.currentTime<phrases[chosen].end){engine.play(audio.currentTime,phrases[chosen].end);return;}
-    const index=Phrase.activeIndex(phrases,audio.currentTime);const next=index>=0?index:phrases.findIndex(p=>p.playable&&p.start>=audio.currentTime);const fallback=next>=0?next:phrases.findIndex(p=>p.playable);
+    const ordered=phrases.flatMap((p,i)=>p.playable?[i]:[]).sort((a,b)=>phrases[a].start-phrases[b].start);
+    const index=Phrase.activeIndex(phrases,audio.currentTime);const next=index>=0?index:ordered.find(i=>phrases[i].start>=audio.currentTime);const fallback=next??ordered[0]??-1;
     if(fallback<0)return error('開始時刻が設定された再生可能なフレーズがありません。');playPhrase(fallback);
   }else engine.play(audio.ended?0:audio.currentTime);
 });
@@ -141,7 +148,8 @@ function move(direction){
   if(position<0)position=direction>0?indices.length-1:0;playPhrase(indices[Math.max(0,Math.min(indices.length-1,position))]);
 }
 $('previous').addEventListener('click',()=>move(-1));$('next').addEventListener('click',()=>move(1));
+window.addEventListener('focus',()=>{if(!$('library-view').hidden)void refreshList();});
 window.addEventListener('beforeunload',e=>{if(dirty||saving){e.preventDefault();e.returnValue='';}});
 window.addEventListener('pageshow',event=>{if(event.persisted&&!dirty){engine.reset();record=null;void boot();}});
-async function boot(){$('library-view').hidden=false;if(new URLSearchParams(location.search).get('view')==='library'){showLibrary();return;}const generation=++viewGeneration;await refreshList();if(generation!==viewGeneration)return;try{const id=new URLSearchParams(location.search).get('song')||await Library.last();if(generation!==viewGeneration||record||dirty||pendingAudio)return;if(id){await openSaved(id);if(!record)showLibrary();}else showLibrary();}catch(e){status(e.message);}}
+async function boot(){$('screen-nav').hidden=true;$('library-view').hidden=false;if(new URLSearchParams(location.search).get('view')==='library'){showLibrary();return;}const generation=++viewGeneration;await refreshList();if(generation!==viewGeneration)return;try{const id=new URLSearchParams(location.search).get('song')||await Library.last();if(generation!==viewGeneration||record||dirty||pendingAudio)return;if(id){await openSaved(id);if(!record)showLibrary();}else showLibrary();}catch(e){status(e.message);}}
 sources.render();update();void boot();

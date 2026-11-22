@@ -80,10 +80,15 @@
     const audios = sources.map(source=>({...previous?.audios.find(a=>a.id===source.id),...source}));
     return {id:song.songId,song:structuredClone(song),audios,activeAudioId:previous?.activeAudioId || audios[0]?.id || '',revision:previous?.revision || 0};
   }
+  function filename(title,date=new Date()) {
+    const pad=n=>String(n).padStart(2,'0');
+    const name=(title.trim().replace(/[<>:"/\\|?*\u0000-\u001f\u007f]/g,'_').replace(/[. ]+$/g,'').slice(0,100)||'無題の曲');
+    return `${name}_${date.getFullYear()}${pad(date.getMonth()+1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}.json`;
+  }
   function download(record) {
     const song=exportSong(record); Phrase.validate(song);
     const url=URL.createObjectURL(new Blob([JSON.stringify(song,null,2)],{type:'application/json'}));
-    const a=document.createElement('a'); a.href=url; a.download=`${song.songId.replace(/[^a-zA-Z0-9_-]/g,'_') || 'song'}.json`;
+    const a=document.createElement('a'); a.href=url; a.download=filename(song.title);
     try{document.body.append(a);a.click();} finally{a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);}
   }
   async function saveBoth(record) {
@@ -91,8 +96,8 @@
     let jsonStarted=false, jsonError='', saved=null, dbError='';
     try { download(record); jsonStarted=true; } catch(e) {jsonError=e.message;}
     try { saved=await save(record); } catch(e) {dbError=e.message;}
-    return {jsonStarted,jsonError,saved,dbError,message:[jsonStarted?'JSONのダウンロードを開始しました。実際に保存されたか、ファイルアプリ等で確認してください。':`JSON書き出し失敗：${jsonError}`,saved?'端末内データは更新済みです。JSONバックアップの完了は未確認です。':`端末内保存に失敗：${dbError}`,Phrase.warnings(record.song)].filter(Boolean).join('\n')};
+    return {jsonStarted,jsonError,saved,dbError,message:[jsonStarted?'JSONのダウンロードを開始。保存先を確認してください。':`JSON書き出し失敗：${jsonError}`,saved?'端末内データは更新済み。JSONの保存完了は未確認です。':`端末内保存に失敗：${dbError}`,Phrase.warnings(record.song)].filter(Boolean).join('\n')};
   }
-  const api={get,list,last,remember,save,remove,fromSong,exportSong,download,saveBoth,storageError};
+  const api={get,list,last,remember,save,remove,fromSong,exportSong,download,saveBoth,storageError,filename};
   root.Library=api; if(typeof module!=='undefined') module.exports=api;
 })(globalThis);

@@ -10,8 +10,9 @@
     string(data.songId, 'songId');
     for(const key of ['title','artist']) if(typeof data[key] !== 'string') fail(`${key}は文字列にしてください。`);
     if (!Array.isArray(data.sections) || !data.sections.length) fail('セクションが必要です。');
-    const ids = new Set(); let previous = null; let count = 0;
+    const ids = new Set(), starts = new Set();
     data.sections.forEach((section, s) => {
+      let previous = null;
       if (!object(section)) fail(`セクション${s + 1}の形式が不正です。`);
       string(section.name, `セクション${s + 1}の名前`);
       if (!Array.isArray(section.phrases)) fail(`${section.name}のphrasesは配列にしてください。`);
@@ -30,10 +31,10 @@
         }
         if (phrase.start != null) {
           if (previous && phrase.start < previous.start) fail(`${label}の時系列順序が不正です。`);
-          if (previous && phrase.start === previous.start) fail(`${label}の開始時刻が前の設定済みフレーズと重複しています。`);
+          if (starts.has(phrase.start)) fail(`${label}の開始時刻が他のフレーズと重複しています。`);
+          starts.add(phrase.start);
           previous = phrase;
         }
-        count++;
       });
     });
 
@@ -63,9 +64,10 @@
   function isTimed(phrase) { return !!phrase && Number.isFinite(phrase.start); }
   function timeline(song, duration, offset = 0) {
     const rows = flatten(song);
+    const timed=rows.filter(isTimed).sort((a,b)=>a.start-b.start);
     return rows.map((p, i) => {
       if (!isTimed(p)) return {...p, start:null, end:null, playable:false};
-      const next = rows.slice(i + 1).find(isTimed);
+      const next = timed.find(row=>row.start>p.start);
       const start = Math.max(0, p.start + offset);
       const end = Math.min(duration, next ? next.start + offset : duration);
       return {...p, registeredStart:p.start, start, end, leadStart:Math.max(0, p.start + offset - 1), playable:start < duration && end > start};
