@@ -19,6 +19,38 @@
     const result = {id:id(song), text:`${p.text}\n${next.text}`, start:p.start ?? null};
     list.splice(index, 2, result); return result;
   }
-  const api = {id, split, merge}; root.EditorModel = api;
+  const hasStart = phrase => Number.isFinite(phrase.start) && phrase.start >= 0;
+  function sortSection(section) {
+    // Unset rows keep their exact slots. Only timed rows exchange positions.
+    const timed = section.phrases.map((phrase,index)=>({phrase,index})).filter(item=>hasStart(item.phrase));
+    const ordered = [...timed].sort((a,b)=>a.phrase.start-b.phrase.start || a.index-b.index);
+    let changed=false;
+    timed.forEach((item,i)=>{if(section.phrases[item.index]!==ordered[i].phrase)changed=true;section.phrases[item.index]=ordered[i].phrase;});
+    return changed;
+  }
+  function sectionWarnings(song) {
+    const warnings=[];let previous=null;
+    for(const section of song.sections){
+      const values=section.phrases.filter(hasStart).map(p=>p.start);
+      if(!values.length)continue;
+      const min=Math.min(...values),max=Math.max(...values);
+      if(previous && min<=previous.max)warnings.push(`「${section.name}」の開始時刻が前のセクション「${previous.name}」の時刻以前です。セクション順は変更せず、時刻または所属セクションを確認してください。`);
+      if(!previous || max>previous.max)previous={name:section.name,max};
+    }
+    return warnings.join('\n');
+  }
+  function moveBoundary(song, target, phraseId) {
+    if(!Number.isInteger(target)||target<=0||target>=song.sections.length)throw new Error('先頭以外のセクションを選択してください。');
+    const rows=song.sections.flatMap(s=>s.phrases),starts=[];let total=0;
+    for(const section of song.sections){starts.push(total);total+=section.phrases.length;}starts.push(total);
+    const position=rows.findIndex(p=>p.id===phraseId);
+    if(position<0)throw new Error('フレーズを選択してください。');
+    // Clamp crossed boundaries; flattened order and every phrase object stay intact.
+    starts[target]=position;
+    for(let i=1;i<target;i++)starts[i]=Math.min(starts[i],position);
+    for(let i=target+1;i<song.sections.length;i++)starts[i]=Math.max(starts[i],position);
+    song.sections.forEach((section,i)=>{section.phrases=rows.slice(starts[i],starts[i+1]);});
+  }
+  const api = {id, split, merge, sortSection, sectionWarnings, moveBoundary}; root.EditorModel = api;
   if(typeof module !== 'undefined') module.exports = api;
 })(globalThis);

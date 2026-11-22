@@ -3,6 +3,7 @@ const $ = id => document.getElementById(id);
 let song = {schemaVersion:1, songId:`song-${Date.now().toString(36)}`, title:'', artist:'', sections:[{name:'Aメロ', phrases:[]}]};
 let selected = null, sectionIndex = 0, dirty = false, importGeneration = 0;
 let record=Library.fromSong(song), currentOffset=0, saving=false, editVersion=0, switchPoint=null;
+const collapsed = new Set();
 const audio = $('audio');
 function error(message = '') {
   $('error').textContent = message; $('error').hidden = !message;
@@ -32,20 +33,22 @@ function updateAudio() {
   $('stamp-start').disabled = !engine.ready || !locationOfSelection();
 }
 function renderSections() {
-  for(const key of ['section', 'phrase-section']) {
+  for(const key of ['section', 'phrase-section', 'boundary-section', 'bulk-section']) {
     $(key).replaceChildren(); song.sections.forEach((section, index) => { const option = document.createElement('option'); option.value = index; option.textContent = section.name; $(key).append(option); });
   }
-  $('section').value = sectionIndex; $('section-name').value = song.sections[sectionIndex].name;
+  $('section').value = sectionIndex; $('bulk-section').value=sectionIndex; $('section-name').value = song.sections[sectionIndex].name;
 }
 function renderList() {
+  const warning=EditorModel.sectionWarnings(song);$('order-warning').textContent=warning;$('order-warning').hidden=!warning;
   $('list').replaceChildren();
   song.sections.forEach((section, s) => {
-    const heading = document.createElement('h3'); heading.textContent = section.name; $('list').append(heading);
+    const heading=document.createElement('button');heading.className='section-toggle secondary';heading.textContent=(collapsed.has(s)?'▸ ':'▾ ')+section.name+' ('+section.phrases.length+')';heading.setAttribute('aria-expanded',String(!collapsed.has(s)));heading.addEventListener('click',()=>{if(collapsed.has(s))collapsed.delete(s);else collapsed.add(s);renderList();});$('list').append(heading);if(collapsed.has(s))return;
     section.phrases.forEach(p => {
       const button = document.createElement('button'); button.className = 'phrase'; button.classList.toggle('active', p.id === selected); button.setAttribute('aria-pressed', String(p.id === selected));
       const text = document.createElement('span'); text.textContent = p.text || '（歌詞未入力）'; const time = document.createElement('small'); time.textContent = `開始 ${p.start ?? '未設定'} 秒`; text.append(time); button.append(text);
       button.addEventListener('click', () => {
         selected = p.id; sectionIndex = s; engine.stopAt = null; render();
+        const timing=selectionTiming();if(engine.ready&&timing?.playable)engine.play(timing.leadStart);
         if(window.matchMedia?.('(max-width: 800px)').matches) document.querySelector('.edit-panel').scrollIntoView({block:'start'});
       }); $('list').append(button);
     });
@@ -56,14 +59,16 @@ function renderSelection() {
   $('selection').textContent = loc ? `ID: ${loc.p.id}` : 'フレーズを追加・選択してください。';
   for(const key of ['text','start']) $(key).value = loc ? loc.p[key] ?? '' : '';
   const timing=selectionTiming();$('auto-end').textContent=timing?.playable?`終了（自動・選択音源上）：${Number.isFinite(timing.end)?timing.end.toFixed(3)+'秒':'音源の末尾'}。試聴は1秒前から。`:'開始時刻を設定してください。音源の範囲外の区間は試聴できません。';
-  if(loc) $('phrase-section').value = loc.s;
+  if(loc){$('phrase-section').value=loc.s;$('boundary-section').value=loc.s||Math.min(1,song.sections.length-1);}
+  $('set-boundary').disabled=!loc||song.sections.length<2;
   updateAudio();
 }
-function render() { renderSections(); renderList(); renderSelection(); }
+function render() { const loc=locationOfSelection();if(loc)collapsed.delete(loc.s);$('setup-guide').hidden=Phrase.flatten(song).length>0;renderSections(); renderList(); renderSelection(); }
 function metadata() { $('title').value = song.title; $('artist').value = song.artist; $('song-id').value = song.songId;$('song-id').readOnly=!!record.revision;$('back-player').href=record.revision?`../player/?song=${encodeURIComponent(record.id)}`:'../player/'; }
 metadata(); render();
 for(const [key, property] of [['title','title'],['artist','artist'],['song-id','songId']]) $(key).addEventListener('input', () => { song[property] = $(key).value; changed(); });
-$('section').addEventListener('change', () => { sectionIndex = Number($('section').value); $('section-name').value = song.sections[sectionIndex].name; });
+$('section').addEventListener('change', () => { sectionIndex = Number($('section').value); $('bulk-section').value=sectionIndex; $('section-name').value = song.sections[sectionIndex].name; });
+$('bulk-section').addEventListener('change',()=>{sectionIndex=Number($('bulk-section').value);$('section').value=sectionIndex;$('section-name').value=song.sections[sectionIndex].name;});
 $('add-section').addEventListener('click', () => { song.sections.push({name:$('section-name').value.trim() || '新しいセクション', phrases:[]}); sectionIndex = song.sections.length - 1; changed(); render(); });
 $('rename-section').addEventListener('click', () => { const name = $('section-name').value.trim(); if(!name) return error('セクション名を入力してください。'); song.sections[sectionIndex].name = name; changed(); render(); });
 function addPhrase(text) { const p = {id:EditorModel.id(song), text, start:null}; song.sections[sectionIndex].phrases.push(p); selected = p.id; }
@@ -73,14 +78,17 @@ for(const key of ['text', 'start']) $(key).addEventListener('input', () => {
   const loc = locationOfSelection(); if(!loc) return; loc.p[key] = key === 'text' ? $(key).value : $(key).value === '' ? null : Number($(key).value); changed(); renderList();
   const timing=selectionTiming();$('auto-end').textContent=timing?.playable?`終了（自動・選択音源上）：${Number.isFinite(timing.end)?timing.end.toFixed(3)+'秒':'音源の末尾'}`:'開始時刻または音源範囲を確認してください。';
 });
-$('phrase-section').addEventListener('change', () => { const loc = locationOfSelection(); if(!loc) return; const target = Number($('phrase-section').value); song.sections[loc.s].phrases.splice(loc.i, 1); song.sections[target].phrases.push(loc.p); sectionIndex = target; changed(); render(); });
-for(const [key, delta] of [['up',-1],['down',1]]) $(key).addEventListener('click', () => { const loc = locationOfSelection(); if(!loc) return; const list = song.sections[loc.s].phrases, target = loc.i + delta; if(target < 0 || target >= list.length) return error('セクションの端です。別のセクションへは所属セクションを変更してください。'); [list[loc.i], list[target]] = [list[target], list[loc.i]]; changed(); render(); });
+function commitStart(){const loc=locationOfSelection();if(!loc)return;if(EditorModel.sortSection(song.sections[loc.s]))changed();renderList();renderSelection();}
+$('start').addEventListener('change',commitStart);
+$('start').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.isComposing){event.preventDefault();commitStart();}});
+$('phrase-section').addEventListener('change', () => { const loc = locationOfSelection(); if(!loc) return; const target = Number($('phrase-section').value); song.sections[loc.s].phrases.splice(loc.i, 1); song.sections[target].phrases.push(loc.p);EditorModel.sortSection(song.sections[target]); sectionIndex = target; changed(); render(); });
+$('set-boundary').addEventListener('click',()=>{try{EditorModel.moveBoundary(song,Number($('boundary-section').value),selected);sectionIndex=locationOfSelection().s;changed();render();}catch(e){error(e.message);}});
 $('delete').addEventListener('click', () => { const loc = locationOfSelection(); if(!loc || !confirm('選択したフレーズを削除しますか？')) return; song.sections[loc.s].phrases.splice(loc.i, 1); selected = null; changed(); render(); });
 for(const action of ['split','merge']) $(action).addEventListener('click', () => { const loc = locationOfSelection(); if(!loc) return; try { selected = EditorModel[action](song, loc.s, loc.i, $('text').selectionStart).id; changed(); render(); $('status').textContent = action === 'split' ? '分割しました。後半の開始時刻を設定してください。' : '結合しました。開始時刻は前の行を維持しています。'; } catch(e) { error(e.message); } });
 $('audio-file').addEventListener('change', async event => { const file = event.target.files[0]; if(!file) return; const target=record;error(); $('audio-status').textContent = '音源を読み込み中…';try{await Sources.add(target,file,record.activeAudioId);if(record!==target)return;changed();switchSource(record.activeAudioId);}catch(e){error(e.message);}event.target.value=''; });
 $('play').addEventListener('click', () => { error(); if(audio.paused) engine.play(audio.ended ? 0 : undefined); else audio.pause(); });
 $('seek').addEventListener('input', () => engine.seek(Number($('seek').value)));
-$('stamp-start').addEventListener('click',()=>{const loc=locationOfSelection();if(!loc||!engine.ready)return;const time=audio.currentTime-currentOffset;if(time<0)return error('補正後の共通時刻が負になります。音源の位置か補正値を調整してください。');loc.p.start=Number(time.toFixed(3));changed();render();});
+$('stamp-start').addEventListener('click',()=>{const loc=locationOfSelection();if(!loc||!engine.ready)return;const time=audio.currentTime-currentOffset;if(time<0)return error('補正後の共通時刻が負になります。音源の位置か補正値を調整してください。');loc.p.start=Number(time.toFixed(3));EditorModel.sortSection(song.sections[loc.s]);changed();render();});
 $('jump-start').addEventListener('click',()=>{const timing=selectionTiming();if(!engine.ready||!timing?.playable)return error('音源と再生範囲内の開始時刻を設定してください。');engine.seek(timing.start);});
 $('preview').addEventListener('click',()=>{if(!engine.ready)return error('音源を読み込んでください。');try{Phrase.validate(song);const timing=selectionTiming();if(!timing?.playable)throw new Error('このフレーズの開始時刻・音源の補正値を確認してください。');error();engine.play(timing.leadStart,timing.end);}catch(e){error(e.message);}});
 $('export').addEventListener('click',async()=>{
@@ -104,6 +112,6 @@ $('json-file').addEventListener('change', async event => {
 window.addEventListener('beforeunload', event => { if(dirty || saving || $('bulk').value.trim()) { event.preventDefault(); event.returnValue = ''; } });
 async function restore(){
   const id=new URLSearchParams(location.search).get('song');if(!id)return;const version=editVersion,generation=++importGeneration;
-  try{const saved=await Library.get(id);if(version!==editVersion||generation!==importGeneration)return;if(!saved)throw new Error('保存曲が見つかりません。元のJSONを読み込んでください。');Phrase.validate(saved.song);record=saved;song=record.song;sectionIndex=0;selected=null;dirty=false;metadata();render();sources.render();switchSource(record.activeAudioId,true);$('status').textContent='端末内の曲を開きました。変更後はJSONも手元に保存してください。';}catch(e){error(e.message);}
+  try{const saved=await Library.get(id);if(version!==editVersion||generation!==importGeneration)return;if(!saved)throw new Error('保存曲が見つかりません。元のJSONを読み込んでください。');Phrase.validate(saved.song);record=saved;song=record.song;sectionIndex=0;selected=Phrase.flatten(song)[0]?.id||null;dirty=false;metadata();render();sources.render();switchSource(record.activeAudioId,true);$('status').textContent='端末内の曲を開きました。変更後はJSONも手元に保存してください。';}catch(e){error(e.message);}
 }
 sources.render();void restore();

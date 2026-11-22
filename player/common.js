@@ -7,7 +7,8 @@
     const string = (value, name) => { if (typeof value !== 'string' || !value.trim()) fail(`${name}には空でない文字列が必要です。`); };
     if (!object(data)) fail('曲データはJSONオブジェクトにしてください。');
     if (data.schemaVersion !== 1) fail('schemaVersionは数値の1のみ対応しています。');
-    for (const key of ['songId', 'title', 'artist']) string(data[key], key);
+    string(data.songId, 'songId');
+    for(const key of ['title','artist']) if(typeof data[key] !== 'string') fail(`${key}は文字列にしてください。`);
     if (!Array.isArray(data.sections) || !data.sections.length) fail('セクションが必要です。');
     const ids = new Set(); let previous = null; let count = 0;
     data.sections.forEach((section, s) => {
@@ -35,7 +36,7 @@
         count++;
       });
     });
-    if (!count) fail('フレーズを1つ以上登録してください。');
+
     if (data.audioSources !== undefined) {
       if (!Array.isArray(data.audioSources)) fail('audioSourcesは配列にしてください。');
       const sourceIds = new Set();
