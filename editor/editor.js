@@ -3,12 +3,17 @@ const $ = id => document.getElementById(id);
 let song = {schemaVersion:1, songId:`song-${Date.now().toString(36)}`, title:'', artist:'', sections:[{name:'Aメロ', phrases:[]}]};
 let selected = null, sectionIndex = 0, dirty = false, importGeneration = 0;
 let record=Library.fromSong(song), currentOffset=0, saving=false, editVersion=0, switchPoint=null;
-let savedVersion=-1, backupState='JSONは別途書き出してください', noticeTimer;
+let savedVersion=-1, backupState='JSONは別途書き出してください', noticeTimer, saveFailed=false;
 function notice(message,temporary=true){clearTimeout(noticeTimer);$('status').textContent=message;if(temporary)noticeTimer=setTimeout(()=>{$('status').textContent='';},7000);}
 function documentState(){
   $('editing-title').textContent=song.title.trim()||'新しい曲';
   const saved=!!record.revision&&savedVersion===editVersion;
-  $('document-state').textContent=`${Phrase.flatten(song).length}フレーズ · ${record.audios.length}音源 — ${saving?'保存中…':saved?'端末内保存済み':record.revision?'端末内に未保存の変更あり':'端末内未保存'} / ${backupState}`;
+  $('song-summary').textContent=`${Phrase.flatten(song).length}フレーズ · ${record.audios.length}音源`;
+  $('document-state').textContent=saving?'保存中…':saveFailed?'保存失敗 · 未保存の変更あり':saved?'✓ 保存済み':'● 未保存の変更あり';
+  $('document-state').setAttribute('data-saved',String(saved&&!saving&&!saveFailed));
+  $('document-state').title='端末内の保存状態';
+  $('backup-state').textContent=backupState;
+  $('loaded-song-summary').textContent=`編集中: ${song.title.trim()||'新しい曲'} · ${$('song-summary').textContent} · ${saved?'端末内保存済み':'端末内未保存'}`;
 }
 const collapsed = new Set();
 const audio = $('audio');
@@ -16,7 +21,7 @@ function error(message = '') {
   $('error').textContent = message; $('error').hidden = !message;
   if(message && $('audio-status').textContent === '音源を読み込み中…') $('audio-status').textContent = '音源の読み込み状況を確認してください';
 }
-function changed() { dirty = true; editVersion++;record.song=song; error(); engine.stopAt = null;backupState='変更後のJSONは未書き出し';documentState(); }
+function changed() { dirty = true;saveFailed=false; editVersion++;record.song=song; error(); engine.stopAt = null;backupState='変更後のJSONは未書き出し';documentState(); }
 function locationOfSelection() {
   for(let s = 0; s < song.sections.length; s++) { const i = song.sections[s].phrases.findIndex(p => p.id === selected); if(i >= 0) return {s, i, p:song.sections[s].phrases[i]}; }
   return null;
@@ -34,7 +39,7 @@ function selectionTiming(){return Phrase.timeline(song,engine.ready?audio.durati
 function updateAudio() {
   $('current').textContent = `${Phrase.format(audio.currentTime)} (${(audio.currentTime || 0).toFixed(3)}秒)`;
   $('duration').textContent = Phrase.format(audio.duration); $('seek').max = Number.isFinite(audio.duration) ? audio.duration : 0; $('seek').value = audio.currentTime || 0;
-  $('play').textContent = audio.paused ? '再生' : '一時停止';
+  $('play').textContent = audio.paused ? '▶' : '⏸';$('play').title=audio.paused?'再生':'一時停止';$('play').setAttribute('aria-label',$('play').title);
   // During construction there are no media events; callbacks run after initialization.
   $('play').disabled = !engine.ready; $('seek').disabled = !engine.ready;
   $('stamp-start').disabled = !engine.ready || !locationOfSelection();
@@ -127,7 +132,7 @@ $('jump-start').addEventListener('click',()=>{const timing=selectionTiming();if(
 $('preview').addEventListener('click',()=>{if(!engine.ready)return error('音源を読み込んでください。');try{Phrase.validate(song);const timing=selectionTiming();if(!timing?.playable)throw new Error('このフレーズの開始時刻・音源の補正値を確認してください。');error();engine.play(timing.leadStart,timing.end);}catch(e){error(e.message);}});
 async function saveEditor(){
   if(saving)return;saving=true;documentState();$('export').disabled=true;const version=editVersion;record.song=song;const target=record;
-  try{const result=await Library.saveBoth(target);if(record===target){if(result.saved){record.revision=result.saved.revision;record.id=result.saved.id;savedVersion=version;}if(version===editVersion){backupState=result.jsonStarted?'JSON出力開始・保存先を確認':'JSON書き出し失敗';if(result.saved&&result.jsonStarted)dirty=false;}metadata();error();notice(result.message+(version!==editVersion?'\n保存操作中の追加変更は未保存です。':''),!!result.saved&&result.jsonStarted);return !!result.saved&&result.jsonStarted&&version===editVersion;}}
+  try{const result=await Library.saveBoth(target);if(record===target){saveFailed=!result.saved;if(result.saved){record.revision=result.saved.revision;record.id=result.saved.id;savedVersion=version;}if(version===editVersion){backupState=result.jsonStarted?'JSON出力開始・保存先を確認':'JSON書き出し失敗';if(result.saved&&result.jsonStarted)dirty=false;}metadata();error();notice(result.message+(version!==editVersion?'\n保存操作中の追加変更は未保存です。':''),!!result.saved&&result.jsonStarted);return !!result.saved&&result.jsonStarted&&version===editVersion;}}
   finally{saving=false;$('export').disabled=false;documentState();}
 }
 $('export').addEventListener('click',saveEditor);
@@ -137,22 +142,22 @@ $('back-player').addEventListener('click',async event=>{
   if(!confirm('現在の曲を保存してPlayerへ移動しますか？JSONも書き出します。'))return;
   if(await saveEditor())location.href=$('back-player').href;
 });
-$('json-only').addEventListener('click',()=>{try{record.song=song;Library.download(record);backupState='JSON出力開始・保存先を確認';documentState();notice('JSONのダウンロードを開始しました。端末内データは更新していません。');}catch(e){backupState='JSON書き出し失敗';documentState();error(e.message);}});
+$('json-only').addEventListener('click',()=>{$('save-menu').open=false;try{record.song=song;Library.download(record);backupState='JSON出力開始・保存先を確認';documentState();notice('JSONのダウンロードを開始しました。端末内データは更新していません。');}catch(e){backupState='JSON書き出し失敗';documentState();error(e.message);}});
 $('json-file').addEventListener('change', async event => {
-  const file = event.target.files[0]; if(!file) return; const generation = ++importGeneration;$('import-result').textContent='';
+  const file = event.target.files[0]; if(!file) return; const generation = ++importGeneration;$('import-result').textContent='';$('json-import-result').textContent='';
   try { const data = Phrase.parse(await file.text()); if(generation !== importGeneration) return;
     if((dirty||record.revision||Phrase.flatten(song).length||record.audios.length) && !confirm(`編集中の「${song.title||'新しい曲'}」をJSON「${data.title||'無題の曲'}」で置き換えますか？端末内データは保存操作まで更新されません。`)) return;
     let previous=record.id===data.songId?record:null;
     if(!previous)try{previous=await Library.get(data.songId);if(previous&&!confirm(`端末内の「${previous.song.title||'無題の曲'}」（ID: ${data.songId}）の更新として「${data.title||'無題の曲'}」を読み込みますか？保存時に置き換えます。`))return;}catch(e){notice(e.message,false);}
     if(!previous&&!record.revision&&record.audios.length)previous={...record,revision:0};
     if(generation!==importGeneration)return;
-    engine.stopAt = null; audio.pause(); song = data;record=Library.fromSong(song,previous); sectionIndex = 0; selected = null; dirty = true;editVersion++;savedVersion=-1;backupState='JSONから読み込み済み';metadata(); render();sources.render();switchSource(record.activeAudioId,true); error();$('import-result').textContent=`JSON「${song.title||'無題の曲'}」を読み込みました。`;notice('端末内へはまだ保存していません。');
+    engine.stopAt = null; audio.pause(); song = data;record=Library.fromSong(song,previous);record.activeAudioId=record.audios[0]?.id||''; sectionIndex = 0; selected = null; dirty = true;editVersion++;savedVersion=-1;saveFailed=false;backupState='JSONから読み込み済み';metadata(); render();sources.render();switchSource(record.activeAudioId,true); error();$('import-result').textContent=`JSON「${song.title||'無題の曲'}」を読み込みました。`;$('json-import-result').textContent=$('import-result').textContent;notice('端末内へはまだ保存していません。');
   } catch(e) { if(generation === importGeneration) error(e.message); }
   finally { event.target.value = ''; }
 });
 window.addEventListener('beforeunload', event => { if(dirty || saving || $('bulk').value.trim()) { event.preventDefault(); event.returnValue = ''; } });
 async function restore(){
   const id=new URLSearchParams(location.search).get('song');if(!id)return;const version=editVersion,generation=++importGeneration;
-  try{const saved=await Library.get(id);if(version!==editVersion||generation!==importGeneration)return;if(!saved)throw new Error('保存曲が見つかりません。元のJSONを読み込んでください。');Phrase.validate(saved.song);record=saved;song=record.song;sectionIndex=0;selected=Phrase.flatten(song)[0]?.id||null;dirty=false;savedVersion=editVersion;backupState='JSONの保管状況は別途確認';metadata();render();sources.render();switchSource(record.activeAudioId,true);$('status').textContent='';}catch(e){error(e.message);}
+  try{const saved=await Library.get(id);if(version!==editVersion||generation!==importGeneration)return;if(!saved)throw new Error('保存曲が見つかりません。元のJSONを読み込んでください。');Phrase.validate(saved.song);record=saved;record.activeAudioId=record.audios[0]?.id||'';song=record.song;sectionIndex=0;selected=Phrase.flatten(song)[0]?.id||null;dirty=false;saveFailed=false;savedVersion=editVersion;backupState='JSONの保管状況は別途確認';metadata();render();sources.render();switchSource(record.activeAudioId,true);$('status').textContent='';}catch(e){error(e.message);}
 }
 sources.render();void restore();
