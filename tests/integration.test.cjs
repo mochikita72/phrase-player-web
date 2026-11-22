@@ -6,7 +6,7 @@ for(const first of ['json','sound'])test(`player reads ${first} first; lead-in, 
   const second=a.elements.lyrics.children[0].children[2];await second.click();assert.equal(a.audio.currentTime,2);
   a.audio.currentTime=4;await second.click();assert.equal(a.audio.currentTime,2);
   await a.radios[1].fire('change');assert.equal(a.read('phrases[chosen].end'),6);
-  a.audio.currentTime=6.1;await a.audio.fire('timeupdate');assert.equal(a.audio.paused,false);assert.equal(a.audio.currentTime,3);
+  a.audio.currentTime=6.1;await a.audio.fire('timeupdate');assert.equal(a.audio.paused,false);assert.equal(a.audio.currentTime,2);
   await a.elements.next.click();assert.equal(a.audio.currentTime,5);assert.equal(a.read('phrases[chosen].end'),10);
   a.elements.seek.value='1';await a.elements.seek.fire('input');assert.equal(a.read('phrases[chosen].end'),3);
   await a.radios[0].fire('change');assert.equal(a.read('engine.stopAt'),null);

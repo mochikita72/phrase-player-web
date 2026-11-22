@@ -29,7 +29,7 @@ const sources=Sources.mount({container:$('source-manager'),select:$('source-sele
 }});
 function update(){
   const loop=phrases[chosen];
-  if(mode==='segment'&&engine.ready&&!audio.paused&&loop?.playable&&audio.currentTime>=loop.end)audio.currentTime=loop.start;
+  if(mode==='segment'&&engine.ready&&!audio.paused&&loop?.playable&&audio.currentTime>=loop.end)audio.currentTime=loop.leadStart;
   if(mode==='segment'&&chosen<0)chosen=Phrase.activeIndex(phrases,audio.currentTime);
   $('current').textContent=Phrase.format(audio.currentTime);$('duration').textContent=Phrase.format(audio.duration);
   $('seek').max=Number.isFinite(audio.duration)?audio.duration:0;$('seek').value=audio.currentTime||0;
@@ -82,7 +82,7 @@ function arm(){
   const p=phrases[chosen];
   if(!p?.playable||audio.currentTime<p.leadStart||audio.currentTime>=p.end)chosen=Phrase.activeIndex(phrases,audio.currentTime);
 }
-audio.addEventListener('ended',()=>{const p=phrases[chosen];if(mode==='segment'&&engine.ready&&p?.playable&&audio.currentTime>=p.end)engine.play(p.start);});
+audio.addEventListener('ended',()=>{const p=phrases[chosen];if(mode==='segment'&&engine.ready&&p?.playable&&audio.currentTime>=p.end)engine.play(p.leadStart);});
 function switchSource(id, restore=false){
   if(!record)return;
   const source=record.audios.find(a=>a.id===id)||Sources.selected(record);

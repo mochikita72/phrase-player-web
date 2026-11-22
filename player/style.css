@@ -34,8 +34,8 @@ body.player-open{background:#f4f0e8;color:#17233b;--line:#d9d4cb}
 .player-open .source-buttons button[aria-pressed=true]{background:#e9a45d;border-color:#e9a45d;color:#17233b}
 .player-open .lyric-workspace{min-width:0}
 .player-open .lyrics{padding:0 0 32px}
-.player-open .lyrics h2{color:#354b70;font-size:1rem;margin:14px 0 12px;padding:0 12px 12px;border-bottom:1px solid #bbc0c8}
-.player-open .lyrics section+section{margin-top:36px}
+.player-open .lyrics h2{color:#354b70;font-size:1rem;margin:8px 0 6px;padding:0 12px 6px;border-bottom:1px solid #bbc0c8}
+.player-open .lyrics section+section{margin-top:18px}
 .player-open .lyrics .phrase{border:0;border-bottom:1px solid #dfdbd4;border-radius:0;background:transparent;color:#17233b;margin:0;padding:22px 18px;font-size:clamp(1.15rem,2vw,1.8rem);line-height:1.65;gap:24px;min-height:64px}
 .player-open .phrase time{font-size:.9rem;color:#59677a;min-width:3.5em}
 .player-open .lyrics .phrase.active,.player-open .lyrics .phrase.selected{background:#f8d9b1;box-shadow:inset 4px 0 #bf7729;border-radius:8px}
@@ -99,8 +99,8 @@ body.player-open{background:#f4f0e8;color:#17233b;--line:#d9d4cb}
 .player-open .lyrics .phrase.active{box-shadow:none;background:#f8d9b1}
 .player-open .lyrics .phrase{padding-top:16px;padding-bottom:16px}
 .player-open #play,.player-open #compact-play{appearance:none;display:grid;place-items:center}
-.player-open #play::before,.player-open #compact-play::before{content:'';display:block;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-left:16px solid #17233b;margin-left:4px}
-.player-open #play.is-playing::before,.player-open #compact-play.is-playing::before{width:16px;height:20px;border:0;border-left:5px solid #17233b;border-right:5px solid #17233b;margin:0}
+.player-open #play::before,.player-open #compact-play::before{content:'';display:block;width:24px;height:24px;border:0;margin:0;background:center/24px 24px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2317233b' d='M8 4L21 12L8 20Z'/%3E%3C/svg%3E")}
+.player-open #play.is-playing::before,.player-open #compact-play.is-playing::before{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2317233b' d='M6 4H10V20H6ZM14 4H18V20H14Z'/%3E%3C/svg%3E")}
 .player-open #resume-follow{position:fixed;right:16px;bottom:190px;z-index:6;background:#fff;color:#17233b;border-color:#354b70;font-size:.8rem}
 @media(max-width:959px){
  .player-open .screen-nav{padding:6px 12px;flex-wrap:nowrap;gap:6px}
