@@ -45,9 +45,9 @@ test('start nudges preserve decimal precision, selection and scroll without down
   assert.throws(()=>M.adjustStart({start:null},0.1));
 });
 
-test('source buttons appear for two or three tracks and preserve logical playback position',async()=>{
+test('source buttons appear for one to three tracks and preserve logical playback position',async()=>{
   const player=await app('player');await player.json();await player.sound();
-  assert.equal(player.elements['source-picker'].hidden,true);assert.equal(player.elements['source-buttons'].hidden,true);
+  assert.equal(player.elements['source-picker'].hidden,true);assert.equal(player.elements['source-buttons'].hidden,false);assert.equal(player.elements['source-buttons'].children.length,1);
   player.read("record.audios.push({...record.audios[0],id:'second',name:'伴奏',offset:2});rebuild();");
   assert.equal(player.elements['source-buttons'].children.length,2);assert.equal(player.elements['source-buttons'].hidden,false);
   player.audio.currentTime=3;await player.elements.play.click();await player.elements['source-buttons'].children[1].click();await player.settle();

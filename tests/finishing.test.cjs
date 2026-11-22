@@ -38,24 +38,25 @@ test('library ordering survives reload without changing revisions, JSON, audio o
   const after=await again.read('Library.get("zz-second")');assert.deepEqual(after,before);assert.equal(await again.read('Library.last()'),last);
 });
 
-test('compact visibility changes only on mobile after controller leaves viewport, without scrolling or media changes',()=>{
-  let mobile=true,bottom=10,scrollCalls=0,mediaCalls=0;const listeners={},compact={hidden:true},player={hidden:false};
-  const full={getBoundingClientRect:()=>({bottom}),scrollIntoView(){scrollCalls++;}},detail={addEventListener:(name,fn)=>{listeners.details=fn;}};
-  const elements={'full-controller':full,'compact-player':compact,player,'compact-details':detail};
-  const context={document:{getElementById:id=>elements[id]},window:{matchMedia:()=>({matches:mobile}),addEventListener:(name,fn)=>{listeners[name]=fn;},scrollTo:()=>{scrollCalls++;}},ResizeObserver:class{observe(){}},requestAnimationFrame:fn=>{fn();return 0;},audio:{play(){mediaCalls++;},pause(){mediaCalls++;}}};
-  vm.runInNewContext(fs.readFileSync(__dirname+'/../player/layout.js','utf8'),context);
-  assert.equal(compact.hidden,true);bottom=-1;listeners.scroll();assert.equal(compact.hidden,false);
-  mobile=false;listeners.resize();assert.equal(compact.hidden,true);
-  mobile=true;bottom=20;listeners.scroll();assert.equal(compact.hidden,true);
-  bottom=-5;player.hidden=true;listeners.scroll();assert.equal(compact.hidden,true);
-  assert.equal(scrollCalls,0);assert.equal(mediaCalls,0);
-  listeners.details();assert.equal(scrollCalls,1);
+test('mobile settings toggle and Escape preserve scrolling and media',async()=>{
+  const player=await app('player');await player.json();await player.sound();
+  vm.runInContext(fs.readFileSync(__dirname+'/../player/layout.js','utf8'),player.context);
+  player.audio.currentTime=4;await player.elements.play.click();
+  await player.elements['player-settings-toggle'].click();
+  assert.equal(player.elements['player-settings-toggle'].attributes['aria-expanded'],'true');
+  assert.equal(player.elements['full-controller'].classes.has('settings-open'),true);
+  await player.elements['full-controller'].fire('keydown',{key:'Escape'});
+  assert.equal(player.elements['player-settings-toggle'].attributes['aria-expanded'],'false');
+  assert.equal(player.audio.currentTime,4);assert.equal(player.audio.paused,false);
+  assert.equal(player.elements['compact-player'].hidden,true);
 });
 
 test('compact menu supports many sources and mirrors transport and offsets',async()=>{
   const player=await app('player');await player.json();await player.sound();
   player.read("record.audios.push({...record.audios[0],id:'b',offset:1},{...record.audios[0],id:'c',name:'とても長い音源名',offset:2});rebuild();");
-  assert.equal(player.elements['compact-sources'].hidden,true);assert.equal(player.elements['compact-source-select'].hidden,false);
+  assert.equal(player.elements['compact-sources'].hidden,false);assert.equal(player.elements['compact-sources'].children.length,3);assert.equal(player.elements['compact-source-select'].hidden,true);
+  player.read("record.audios.push({...record.audios[0],id:'d'});rebuild();");
+  assert.equal(player.elements['source-buttons'].hidden,true);assert.equal(player.elements['source-picker'].hidden,false);assert.equal(player.elements['compact-source-select'].hidden,false);
   player.audio.currentTime=3;await player.elements['compact-play'].click();
   player.elements['compact-source-select'].value='c';await player.elements['compact-source-select'].fire('change');await player.settle();
   assert.equal(player.audio.currentTime,5);assert.equal(player.audio.paused,false);

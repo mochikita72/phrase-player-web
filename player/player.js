@@ -35,9 +35,10 @@ function update(){
   $('compact-play').textContent=audio.paused?'▶':'⏸';$('compact-play').setAttribute('aria-label',audio.paused?'再生':'一時停止');$('compact-play').title=$('play').title;$('compact-play').disabled=$('play').disabled;
   $('compact-previous').disabled=$('compact-next').disabled=$('previous').disabled;
   window.refreshCompactPlayer?.();
+  document.body.classList.toggle('player-open',!$('player').hidden);
   let index=Phrase.activeIndex(phrases,audio.currentTime,mode==='segment'?chosen:-1);
   if(chosen>=0 && phrases[chosen]?.playable && audio.currentTime>=phrases[chosen].leadStart && audio.currentTime<phrases[chosen].start)index=chosen;
-  buttons.forEach((b,i)=>{b.classList.toggle('active',i===index);if(i===index)b.setAttribute('aria-current','true');else b.removeAttribute('aria-current');});
+  buttons.forEach((b,i)=>{b.classList.toggle('selected',i===chosen);b.setAttribute('aria-pressed',String(i===chosen));b.classList.toggle('active',i===index);if(i===index)b.setAttribute('aria-current','true');else b.removeAttribute('aria-current');});
 }
 function rebuild(){
   if(!record)return;
@@ -62,14 +63,14 @@ function rebuild(){
   $('player').hidden=!$('library-view').hidden;update();
 }
 function renderSourceButtons(){
-  const tracks=record?.audios||[];$('source-picker').hidden=tracks.length<=3;$('source-buttons').hidden=tracks.length<2||tracks.length>3;$('source-buttons').replaceChildren();
-  $('compact-sources').replaceChildren();$('compact-source-select').replaceChildren();$('compact-sources').hidden=tracks.length!==2;$('compact-source-select').hidden=tracks.length<3;
+  const tracks=record?.audios||[];$('source-picker').hidden=tracks.length<=3;$('source-buttons').hidden=tracks.length<1||tracks.length>3;$('source-buttons').replaceChildren();
+  $('compact-sources').replaceChildren();$('compact-source-select').replaceChildren();$('compact-sources').hidden=tracks.length<1||tracks.length>3;$('compact-source-select').hidden=tracks.length<4;
   for(const track of tracks){
     const option=document.createElement('option');option.value=track.id;option.textContent=track.name;$('compact-source-select').append(option);
-    if(tracks.length===2){const button=document.createElement('button');button.className='secondary';button.textContent=track.name;button.title=track.name;button.setAttribute('aria-pressed',String(track.id===record.activeAudioId));button.addEventListener('click',()=>switchSource(track.id));$('compact-sources').append(button);}
+    if(tracks.length>=1&&tracks.length<=3){const button=document.createElement('button');button.className='secondary';button.textContent=track.name;button.title=track.name;button.setAttribute('aria-pressed',String(track.id===record.activeAudioId));button.addEventListener('click',()=>switchSource(track.id));$('compact-sources').append(button);}
   }
   $('compact-source-select').value=record?.activeAudioId||'';
-  if(tracks.length<2||tracks.length>3)return;
+  if(tracks.length<1||tracks.length>3)return;
   for(const track of tracks){const button=document.createElement('button');button.className='secondary';button.textContent=track.name;button.title=track.name;button.setAttribute('aria-pressed',String(track.id===record.activeAudioId));button.addEventListener('click',()=>switchSource(track.id));$('source-buttons').append(button);}
 }
 function playPhrase(index){const p=phrases[index];if(!p?.playable||!engine.ready)return;chosen=index;error();engine.play(p.leadStart,mode==='segment'?p.end:null);}
@@ -113,7 +114,7 @@ $('new-song').addEventListener('click',()=>{
   if(!canLeave())return;viewGeneration++;importGeneration++;audioGeneration++;engine.reset();record=null;phrases=[];buttons=[];dirty=false;chosen=-1;pendingAudio=null;switchPoint=null;currentOffset=0;
   $('player').hidden=true;$('manage').open=true;$('audio-file').value=$('json-file').value='';$('audio-status').textContent='音源を選択してください';$('json-status').textContent='JSONを選択してください';sources.render();status('JSONと音源を選択してください。');error();
 });
-function showLibrary(){viewGeneration++;$('screen-nav').hidden=true;audio.pause();$('library-view').hidden=false;$('player').hidden=true;$('compact-player').hidden=true;status('');error();void refreshList();window.scrollTo(0,0);}
+function showLibrary(){viewGeneration++;$('screen-nav').hidden=true;audio.pause();$('library-view').hidden=false;$('player').hidden=true;$('compact-player').hidden=true;document.body.classList.toggle('player-open',false);status('');error();void refreshList();window.scrollTo(0,0);}
 $('change').addEventListener('click',event=>{event.preventDefault?.();showLibrary();});
 $('reload-library').addEventListener('click',refreshList);
 $('open-editor').addEventListener('click',event=>{if(dirty||saving){event.preventDefault?.();$('edit').click();}});

@@ -1,16 +1,10 @@
 'use strict';
-// The full controller stays in normal document flow on mobile. This independent
-// fixed bar never changes page height, audio nodes, or scroll position.
+// One mounted transport: settings never reload audio or scroll lyrics.
 const fullController=document.getElementById('full-controller');
-const compactPlayer=document.getElementById('compact-player');
-let compactFrame=0;
-window.refreshCompactPlayer=()=>{
-  compactPlayer.hidden=!(window.matchMedia('(max-width:600px)').matches &&
-    !document.getElementById('player').hidden && fullController.getBoundingClientRect().bottom<=0);
-};
-const scheduleCompact=()=>{if(compactFrame)return;compactFrame=requestAnimationFrame(()=>{compactFrame=0;window.refreshCompactPlayer();});};
-window.addEventListener('scroll',scheduleCompact,{passive:true});
-window.addEventListener('resize',scheduleCompact);
-new ResizeObserver(scheduleCompact).observe(fullController);
-document.getElementById('compact-details').addEventListener('click',()=>fullController.scrollIntoView({block:'start'}));
+const settingsToggle=document.getElementById('player-settings-toggle');
+let settingsOpen=false;
+function showSettings(open){settingsOpen=open;fullController.classList.toggle('settings-open',open);settingsToggle.setAttribute('aria-expanded',String(open));settingsToggle.textContent=open?'詳細を閉じる':'詳細設定';}
+settingsToggle.addEventListener('click',()=>showSettings(!settingsOpen));
+fullController.addEventListener('keydown',event=>{if(event.key==='Escape'&&settingsOpen){showSettings(false);settingsToggle.focus();}});
+window.refreshCompactPlayer=()=>{document.getElementById('compact-player').hidden=true;};
 window.refreshCompactPlayer();
