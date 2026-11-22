@@ -44,7 +44,17 @@
     });
   }
   const get = id => transaction(['songs'],'readonly',(tx,done)=>{const r=tx.objectStore('songs').get(id);r.onsuccess=()=>done(r.result || null);});
-  const list = () => transaction(['songs'],'readonly',(tx,done)=>{const r=tx.objectStore('songs').getAll();r.onsuccess=()=>done(r.result.map(x=>({id:x.id,title:x.song.title,artist:x.song.artist,revision:x.revision})));});
+  function ordered(records,order){const rank=new Map((order||[]).map((id,i)=>[id,i]));return records.sort((a,b)=>(rank.get(a.id)??Infinity)-(rank.get(b.id)??Infinity));}
+  const list = () => transaction(['songs','meta'],'readonly',(tx,done)=>{
+    let records,order;const finish=()=>{if(records&&order)done(ordered(records,order).map(x=>({id:x.id,title:x.song.title,artist:x.song.artist,revision:x.revision})));};
+    const r=tx.objectStore('songs').getAll(),m=tx.objectStore('meta').get('order');r.onsuccess=()=>{records=r.result;finish();};m.onsuccess=()=>{order=m.result||[];finish();};
+  });
+  const move = (id,direction) => transaction(['songs','meta'],'readwrite',(tx,done,abort)=>{
+    if(![-1,1].includes(direction)){abort(new Error('移動方向が不正です。'));return;}
+    let records,order;const finish=()=>{if(!records||!order)return;const ids=ordered(records,order).map(x=>x.id),index=ids.indexOf(id),target=index+direction;
+      if(index<0||target<0||target>=ids.length)return;[ids[index],ids[target]]=[ids[target],ids[index]];tx.objectStore('meta').put(ids,'order');};
+    const r=tx.objectStore('songs').getAll(),m=tx.objectStore('meta').get('order');r.onsuccess=()=>{records=r.result;finish();};m.onsuccess=()=>{order=m.result||[];finish();};
+  });
   const last = () => transaction(['meta'],'readonly',(tx,done)=>{const r=tx.objectStore('meta').get('last');r.onsuccess=()=>done(r.result || null);});
   const remember = id => transaction(['meta'],'readwrite',tx=>tx.objectStore('meta').put(id,'last'));
   async function save(record) {
@@ -98,6 +108,6 @@
     try { saved=await save(record); } catch(e) {dbError=e.message;}
     return {jsonStarted,jsonError,saved,dbError,message:[jsonStarted?'JSONのダウンロードを開始。保存先を確認してください。':`JSON書き出し失敗：${jsonError}`,saved?'端末内データは更新済み。JSONの保存完了は未確認です。':`端末内保存に失敗：${dbError}`,Phrase.warnings(record.song)].filter(Boolean).join('\n')};
   }
-  const api={get,list,last,remember,save,remove,fromSong,exportSong,download,saveBoth,storageError,filename};
+  const api={get,list,move,last,remember,save,remove,fromSong,exportSong,download,saveBoth,storageError,filename};
   root.Library=api; if(typeof module!=='undefined') module.exports=api;
 })(globalThis);
