@@ -230,3 +230,33 @@ body .screen-nav.studio-nav>[aria-current=page]{background:#e9a45d;color:#17233b
  .player-open #player{display:block;padding-top:0}
  .player-open .player-mobile-header .player-sidebar{margin:0;padding:12px}
 }
+
+/* Library uses the same surfaces and controls without changing storage/actions. */
+body.player-page{background:#f4f0e8;color:#17233b}
+.player-page:not(.player-open) main{max-width:1760px}
+.player-page .library-view{max-width:1200px;margin:auto;padding:32px clamp(16px,4vw,48px) 48px}
+.library-view>.eyebrow{display:none}
+.library-view>h1{font-size:clamp(1.6rem,3vw,2rem);margin:0 0 16px}
+.library-view>.actions{margin-bottom:24px}
+.library-view .button-link{display:inline-flex;align-items:center;justify-content:center;background:#e9a45d;color:#17233b;border:1px solid #d9954d;border-radius:8px;min-height:44px;padding:10px 18px;text-decoration:none;font-weight:650}
+.library-view .song-card{display:grid;grid-template-columns:minmax(0,1fr) 44px 44px 44px;gap:12px;align-items:center;background:#fff;border:1px solid #d9d4cb;border-radius:10px;padding:12px 16px;margin:12px 0;box-shadow:none}
+.library-view .song-card .song-choice{grid-column:1;grid-row:1;text-align:left;min-width:0;min-height:88px;padding:8px 0;background:transparent;color:#17233b;border:0}
+.library-view .song-choice .song-name{font-size:1.15rem;color:#17233b;font-weight:650}
+.library-view .song-choice .song-artist{color:#52617a;font-size:.9rem}
+.library-view .song-choice .song-divider{color:#9a9fa6}
+.library-view .song-card .row-edit{grid-column:2;grid-row:1}
+.library-view .song-card>.song-delete{grid-column:3;grid-row:1}
+.library-view .song-card .song-order{grid-column:4;grid-row:1;gap:2px}
+.library-view .row-edit,.library-view .song-delete,.library-view .song-order button{display:flex;align-items:center;justify-content:center;width:44px;height:44px;min-height:44px;padding:0;color:#354b70;background:transparent;border:1px solid #d2d6dd;border-radius:8px}
+.library-view .song-delete{color:#88413d}
+.library-view .song-order button:disabled{opacity:.3;background:#e8e7e4}
+.library-view .row-edit::before,.library-view .song-delete::before{content:"";display:block;width:21px;height:21px;background:currentColor;mask:center/contain no-repeat}
+.library-view .row-edit::before{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m4 16 12-12 4 4L8 20H4v-4Zm10-10 4 4' fill='none' stroke='black' stroke-width='1.8' stroke-linejoin='round'/%3E%3C/svg%3E")}
+.library-view .song-delete::before{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7' fill='none' stroke='black' stroke-width='1.8' stroke-linejoin='round'/%3E%3C/svg%3E")}
+.library-view .library-help{margin-top:28px;color:#52617a;font-size:.85rem;border-top:1px solid #d9d4cb;padding-top:16px}
+.library-help summary{min-height:44px;cursor:pointer}
+.library-view .note{color:#52617a}
+body .studio-nav>span:first-child{max-width:none;width:auto;flex:initial}
+@media(max-width:599px){body .screen-nav.studio-nav>span:first-child{flex-basis:100%;max-width:none}.player-page .library-view{padding:24px 12px}.library-view .song-card{grid-template-columns:minmax(0,1fr) 44px 44px 44px;gap:8px;padding:12px}.library-view .song-card .song-choice{grid-column:1/4;grid-row:1;min-height:64px}.library-view .song-card .row-edit{grid-column:2;grid-row:2}.library-view .song-card>.song-delete{grid-column:3;grid-row:2}.library-view .song-card .song-order{grid-column:4;grid-row:1/3}.library-view .song-choice .song-name{font-size:1.05rem}.library-view .song-choice .song-artist{font-size:.85rem}}
+
+body .screen-nav.studio-nav>.current-screen{margin-right:0;letter-spacing:normal;font-size:.9rem}

@@ -167,3 +167,5 @@ body .screen-nav.studio-nav>[aria-current=page]{background:#e9a45d;color:#17233b
 .editor-page #audio-management[open]>summary::after{transform:rotate(225deg)}
 .editor-page .section-move{width:44px;height:44px;padding:0}
 .editor-page #audio-status:empty{display:none}
+
+body .screen-nav.studio-nav>.current-screen{margin-right:0;letter-spacing:normal;font-size:.9rem}
