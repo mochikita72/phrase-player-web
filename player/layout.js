@@ -11,7 +11,7 @@ window.refreshCompactPlayer();
 
 let followEnabled=true,lastFollowed=null,manualScroll=false,previousY=window.scrollY||0,directionDistance=0,headerHidden=false;
 const resumeFollow=document.getElementById('resume-follow');
-resumeFollow.textContent='↓ 追従';resumeFollow.setAttribute('aria-label','再生中の歌詞に追従');
+resumeFollow.textContent='';resumeFollow.title='再生中の歌詞に追従';resumeFollow.setAttribute('aria-label','再生中の歌詞に追従');
 function suspendFollow(){followEnabled=false;resumeFollow.hidden=false;}
 function header(hidden){
   headerHidden=hidden;document.body.classList.toggle('player-header-hidden',hidden);

@@ -1,6 +1,15 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const {app,sample}=require('./browser.cjs');
 const notes=p=>p.context.window.PlayerNotes;
+test('volume icons expose current mute state without emoji text in Player and Editor',async()=>{
+ for(const kind of ['player','editor']){
+  const p=await app(kind);await p.json();await p.sound();p.audio.currentTime=4;
+  const button=p.elements[kind==='player'?'mute':'editor-mute'];
+  assert.equal(button.textContent,'');assert.equal(button.attributes['aria-pressed'],'false');assert.equal(button.classes.has('is-muted'),false);
+  await button.click();assert.equal(button.classes.has('is-muted'),true);assert.equal(button.attributes['aria-pressed'],'true');assert.match(button.attributes['aria-label'],/解除/);
+  await button.click();assert.equal(button.classes.has('is-muted'),false);assert.equal(p.audio.currentTime,4);assert.equal(p.audio.paused,true);
+ }
+});
 async function saved(){const p=await app('player');await p.json();await p.sound();await p.elements['save-library'].click();return p;}
 async function write(p,id,text){notes(p).open(id);p.elements['note-input'].value=text;await p.elements['note-input'].fire('input');await notes(p).flush();await p.settle();}
 test('phrase and song notes autosave by stable IDs and survive reload and JSON roundtrip',async()=>{
@@ -54,10 +63,10 @@ test('note viewing and editing preserve audio state; untimed notes remain access
  const p=await saved();await p.elements.play.click();p.audio.currentTime=4;
  await write(p,'p002','全文\n二行目');await p.elements['notes-mode'].click();
  assert.equal(p.audio.currentTime,4);assert.equal(p.audio.paused,false);assert.equal(p.read('chosen'),-1);
- assert.equal(p.elements['notes-mode'].attributes['aria-pressed'],'true');assert.equal(p.elements.lyrics.children[0].children[2].memoText.textContent,'全文\n二行目');
- await p.elements['notes-mode'].click();assert.equal(p.audio.currentTime,4);assert.equal(p.audio.paused,false);
+ assert.equal(p.elements['notes-mode'].attributes['aria-pressed'],'true');assert.equal(p.elements['notes-mode'].textContent,'メモON');assert.equal(p.elements.lyrics.children[0].children[2].children.some(child=>child.className==='memo-mark'),false);assert.equal(p.elements['note-time'].textContent,'0:03');assert.equal(p.elements['note-lyric'].textContent,sample.sections[0].phrases[1].text);assert.equal(p.elements.lyrics.children[0].children[2].memoText.textContent,'全文\n二行目');
+ await p.elements['notes-mode'].click();assert.equal(p.elements['notes-mode'].textContent,'メモOFF');assert.equal(p.audio.currentTime,4);assert.equal(p.audio.paused,false);
  p.read('record.song.sections[0].phrases[0].start=null;rebuild();');const row=p.elements.lyrics.children[0].children[1];
- await row.fire('keydown',{key:'ContextMenu',preventDefault(){}});assert.match(p.elements['note-context'].textContent,/時刻未設定/);
+ await row.fire('keydown',{key:'ContextMenu',preventDefault(){}});assert.match(p.elements['note-time'].textContent,/時刻未設定/);
 });
 test('split carries note to first half and merge retains both notes',async()=>{
  const p=await app('editor');await p.json();p.read("song.sections[0].phrases[0].note='元メモ';EditorModel.split(song,0,0,2);");

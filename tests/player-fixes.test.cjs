@@ -36,6 +36,7 @@ test('following scrolls only on phrase changes; manual scroll suspends until exp
  p.elements['full-controller'].getBoundingClientRect=()=>({top:650});
  p.document.querySelector=()=>({getBoundingClientRect:()=>({bottom:100})});
  vm.runInContext(fs.readFileSync(__dirname+'/../player/layout.js','utf8'),p.context);
+ assert.equal(p.elements['resume-follow'].textContent,'');assert.equal(p.elements['resume-follow'].attributes['aria-label'],'再生中の歌詞に追従');
  const row=new Element();row.getBoundingClientRect=()=>({top:700,bottom:750,height:50});
  p.context.window.followPlayerPhrase(row,true);p.context.window.followPlayerPhrase(row,true);assert.equal(moves.length,1);
  await p.context.window.fire('wheel');p.context.window.followPlayerPhrase(new Element(),true);assert.equal(moves.length,1);assert.equal(p.elements['resume-follow'].hidden,false);

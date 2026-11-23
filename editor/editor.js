@@ -23,7 +23,7 @@ function editorVolume(persist=false){
   const value=Math.round(audio.volume*100),silent=audio.muted||value===0;
   if(value>0)editorAudibleVolume=audio.volume;
   $('editor-volume').value=value;$('editor-volume-value').textContent=(audio.muted?0:value)+'%';
-  $('editor-mute').textContent=silent?'消音解除':'消音';$('editor-mute').setAttribute('aria-pressed',String(silent));
+  $('editor-mute').textContent='';$('editor-mute').classList.toggle('is-muted',silent);$('editor-mute').title=silent?'消音解除':'消音';$('editor-mute').setAttribute('aria-label',$('editor-mute').title);$('editor-mute').setAttribute('aria-pressed',String(silent));
   if(persist)try{window.localStorage?.setItem('phrase-studio-volume',JSON.stringify({volume:audio.volume,muted:audio.muted,lastAudibleVolume:editorAudibleVolume}));}catch{}
 }
 audio.volume=1;audio.muted=false;

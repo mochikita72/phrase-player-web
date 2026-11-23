@@ -9,7 +9,7 @@ let lastAudibleVolume=1;
 function volumeState(persist=false){
   const value=Math.round(audio.volume*100),silent=audio.muted||value===0;
   $('volume').value=value;$('volume-value').textContent=audio.muted?'0%（ミュート）':value+'%';
-  $('mute').textContent=silent?'🔇':'🔊';$('mute').title=silent?'ミュート解除':'ミュート';$('mute').setAttribute('aria-label',$('mute').title);$('mute').setAttribute('aria-pressed',String(silent));
+  $('mute').textContent='';$('mute').classList.toggle('is-muted',silent);$('mute').title=silent?'ミュート解除':'ミュート';$('mute').setAttribute('aria-label',$('mute').title);$('mute').setAttribute('aria-pressed',String(silent));
   if(value>0)lastAudibleVolume=audio.volume;
   if(persist)try{window.localStorage?.setItem('phrase-studio-volume',JSON.stringify({volume:audio.volume,muted:audio.muted,lastAudibleVolume}));}catch{}
 }
