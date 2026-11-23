@@ -154,6 +154,7 @@ body.player-open{background:#f4f0e8;color:#17233b;--line:#d9d4cb}
 #note-dialog #note-state{font-size:.85rem;white-space:pre-wrap;color:#354b70}
 @media(max-width:959px){
  .player-open .player-sidebar{top:var(--player-nav-height,56px)}
+ .player-open .title-row{height:auto;min-height:88px}
  .player-open .source-area{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px}
  .player-open .source-area #song-note{grid-column:2;grid-row:1;margin:0;padding:4px 6px;font-size:.7rem}
  .player-open .source-area :is(#source-buttons,#source-picker){grid-column:1;grid-row:1;min-width:0}
