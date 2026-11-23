@@ -9,12 +9,31 @@ fullController.addEventListener('keydown',event=>{if(event.key==='Escape'&&setti
 window.refreshCompactPlayer=()=>{document.getElementById('compact-player').hidden=true;};
 window.refreshCompactPlayer();
 
+// A single sticky mobile header retains its natural document flow. Its negative
+// sticky inset consumes scroll distance instead of translating a blank placeholder.
+const mobileHeader=document.createElement('div');mobileHeader.className='player-mobile-header';
+const navNode=document.getElementById('screen-nav'),sidebarNode=document.querySelector('.player-sidebar');
+function arrangeHeader(){
+  if(!navNode.parentNode?.insertBefore)return;
+  const main=document.querySelector('main'),player=document.getElementById('player');
+  if(window.matchMedia('(max-width:959px)').matches){
+    if(!mobileHeader.parentNode)main.insertBefore(mobileHeader,main.firstChild);
+    if(navNode.parentNode!==mobileHeader)mobileHeader.append(navNode,sidebarNode);
+  }else{
+    main.insertBefore(navNode,main.firstChild);player.insertBefore(sidebarNode,player.firstChild);
+  }
+}
+arrangeHeader();
+window.addEventListener('resize',arrangeHeader);
+let headerOffset=0;
+function headerHeight(){return mobileHeader.getBoundingClientRect?.().height||180;}
+function offsetHeader(value){headerOffset=Math.max(0,Math.min(headerHeight(),value));document.body.style?.setProperty('--player-header-offset',headerOffset+'px');}
 let followEnabled=true,lastFollowed=null,manualScroll=false,previousY=window.scrollY||0,directionDistance=0,headerHidden=false;
 const resumeFollow=document.getElementById('resume-follow');
 resumeFollow.textContent='';resumeFollow.title='再生中の歌詞に追従';resumeFollow.setAttribute('aria-label','再生中の歌詞に追従');
 function suspendFollow(){followEnabled=false;resumeFollow.hidden=false;}
 function header(hidden){
-  headerHidden=hidden;document.body.classList.toggle('player-header-hidden',hidden);
+  offsetHeader(hidden?headerHeight():0);headerHidden=hidden;document.body.classList.toggle('player-header-hidden',hidden);
   for(const node of [document.getElementById('screen-nav'),document.querySelector('.player-sidebar')])if(node){node.inert=hidden;node.setAttribute?.('aria-hidden',String(hidden));}
 }
 function manual(event){
@@ -39,7 +58,15 @@ window.addEventListener('scroll',()=>{
   if(!manualScroll||document.getElementById('note-dialog')?.open)return;
   if(Math.sign(delta)!==Math.sign(directionDistance))directionDistance=0;
   directionDistance+=delta;
-  if(Math.abs(directionDistance)>=12){header(directionDistance>0);directionDistance=0;}
+  if(y<=0){header(false);return;}
+  if(Math.abs(directionDistance)>=12){
+    if(window.matchMedia('(max-width:959px)').matches){
+      offsetHeader(headerOffset+directionDistance);headerHidden=headerOffset>=headerHeight();
+      document.body.classList.toggle('player-header-hidden',headerHidden);
+      for(const node of [navNode,sidebarNode])if(node){node.inert=headerHidden;node.setAttribute?.('aria-hidden',String(headerHidden));}
+    }else header(directionDistance>0);
+    directionDistance=0;
+  }
 },{passive:true});
 function measureControls(){
   if(!document.body.style)return;
@@ -49,7 +76,7 @@ function measureControls(){
   lastFollowed=null;
 }
 if(typeof ResizeObserver!=='undefined'){
-  const sizes=new ResizeObserver(measureControls);sizes.observe(fullController);sizes.observe(document.getElementById('screen-nav'));
+  const sizes=new ResizeObserver(measureControls);sizes.observe(mobileHeader);sizes.observe(fullController);sizes.observe(document.getElementById('screen-nav'));
 }
 window.addEventListener('resize',measureControls);measureControls();
 window.followPlayerPhrase=(row,playing)=>{

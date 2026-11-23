@@ -63,7 +63,7 @@ test('library has explicit edit targets and no header navigation; new Editor sav
   assert.equal(prevented,true);assert.equal(editor.elements['leave-dialog'].open,true);assert.equal(editor.read('record.revision'),0);await editor.elements['leave-save'].click();assert.equal(editor.read('record.revision'),1);
   assert.equal(editor.read('location.href'),editor.elements['back-player'].href);
   const library=await app('player',{factory:editor.factory,search:'?view=library'});
-  assert.equal(library.elements['screen-nav'].hidden,true);
+  assert.equal(library.elements['screen-nav'].hidden,false);
   assert.equal(library.elements['song-cards'].children[0].children[2].href,editor.elements['back-player'].href.replace('../player/','../editor/'));
 });
 

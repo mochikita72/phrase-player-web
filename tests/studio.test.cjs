@@ -7,7 +7,7 @@ const Phrase=require('../player/common.js');
 
 test('navigation links are outside hidden views and Editor targets the opened song',async()=>{
   const html=fs.readFileSync(`${__dirname}/../player/index.html`,'utf8');
-  const nav=html.match(/<nav id="screen-nav" class="screen-nav"[\s\S]*?<\/nav>/)[0];
+  const nav=html.match(/<nav id="screen-nav" class="screen-nav studio-nav"[\s\S]*?<\/nav>/)[0];
   assert.match(nav,/<a id="change" href="\?view=library">/);
   assert.match(nav,/<a id="open-editor" href="\.\.\/editor\/">/);
   assert.ok(html.indexOf(nav)<html.indexOf('id="library-view"'));

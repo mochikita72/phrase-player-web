@@ -50,7 +50,7 @@ function switchSource(id,restore=false){
   const point=restore?{logical:0,playing:false}:switchPoint||{logical:audio.currentTime-currentOffset,playing:!audio.paused};
   switchPoint=point;record.activeAudioId=source?.id||'';currentOffset=source?.offset||0;engine.reset();sources.render();
   if(!source?.file){switchPoint=null;$('audio-status').textContent='音源ファイルを選択・登録してください。';renderList();renderSelection();return;}
-  engine.load(source.file,()=>{source.duration=audio.duration;const time=Math.max(0,Math.min(audio.duration,point.logical+currentOffset));engine.seek(time);if(point.playing&&time<audio.duration)engine.play(time);switchPoint=null;$('audio-status').textContent=source.name;renderList();renderSelection();},source.fileName);
+  engine.load(source.file,()=>{source.duration=audio.duration;const time=Math.max(0,Math.min(audio.duration,point.logical+currentOffset));engine.seek(time);if(point.playing&&time<audio.duration)engine.play(time);switchPoint=null;$('audio-status').textContent='';renderList();renderSelection();},source.fileName);
 }
 function selectionTiming(){return Phrase.timeline(song,engine.ready?audio.duration:Infinity,currentOffset).find(p=>p.id===selected);}
 function updateAudio() {
@@ -76,7 +76,7 @@ function renderSectionManager(){
     const name=document.createElement('input');name.value=section.name;label.append(name);
     name.addEventListener('change',()=>{if(!name.value.trim()){name.value=section.name;return error('名前を入力してください。');}section.name=name.value.trim();changed();render();});
     const actions=document.createElement('div');actions.className='actions';
-    for(const [direction,text] of [[-1,'上へ'],[1,'下へ']]){const button=document.createElement('button');button.className='secondary';button.textContent=direction<0?'⌃':'⌄';button.className='secondary section-move';button.title=text;button.disabled=index+direction<0||index+direction>=song.sections.length;button.setAttribute('aria-label',section.name+'を'+text);button.addEventListener('click',()=>{sectionIndex=EditorModel.moveSection(song,index,direction);collapsed.clear();changed();render();});actions.append(button);}
+    for(const [direction,text] of [[-1,'上へ'],[1,'下へ']]){const button=document.createElement('button');button.className='secondary';button.textContent='';button.className='secondary section-move '+(direction<0?'chevron-up':'chevron-down');button.title=text;button.disabled=index+direction<0||index+direction>=song.sections.length;button.setAttribute('aria-label',section.name+'を'+text);button.addEventListener('click',()=>{sectionIndex=EditorModel.moveSection(song,index,direction);collapsed.clear();changed();render();});actions.append(button);}
     const destination=document.createElement('select');destination.setAttribute('aria-label',section.name+'の削除時のフレーズ移動先');
     song.sections.forEach((other,i)=>{if(i===index)return;const option=document.createElement('option');option.value=i;option.textContent=other.name;destination.append(option);});
     destination.value=index===0?1:index-1;

@@ -90,3 +90,27 @@ test('header hides for auto follow, ignores programmatic movement and reveals af
  p.context.window.scrollY=180;await p.context.window.fire('scroll');assert.equal(p.document.body.classes.has('player-header-hidden'),false);
  p.context.window.resumePlayerFollow();p.context.window.followPlayerPhrase(row,true);assert.equal(p.document.body.classes.has('player-header-hidden'),true);
 });
+
+test('touch memo taps do not edit or play; desktop clicks still edit',async()=>{
+ const p=await saved(),row=p.elements.lyrics.children[0].children[1];p.audio.currentTime=4;
+ let stopped=false;
+ await row.fire('pointerdown',{pointerType:'touch',clientX:0,clientY:0});await row.fire('pointerup');
+ await row.memoText.fire('click',{stopPropagation(){stopped=true;}});
+ assert.equal(stopped,true);assert.equal(p.elements['note-dialog'].open,false);assert.equal(p.audio.currentTime,4);
+ await row.fire('pointerdown',{pointerType:'mouse'});
+ await row.memoText.fire('click',{pointerType:'mouse',stopPropagation(){}});
+ assert.equal(p.elements['note-dialog'].open,true);assert.equal(p.audio.currentTime,4);
+});
+test('mobile header consumes scroll distance progressively and resets at page top',async()=>{
+ const p=await saved(),values={};p.document.body.style={setProperty:(key,value)=>values[key]=value};
+ p.context.window.innerHeight=800;p.context.window.scrollY=0;p.context.window.matchMedia=()=>({matches:true});
+ p.elements['screen-nav'].getBoundingClientRect=()=>({height:80,bottom:80});
+ p.elements['full-controller'].getBoundingClientRect=()=>({height:140,top:660});
+ p.document.querySelector=()=>({getBoundingClientRect:()=>({bottom:180})});
+ vm.runInContext(fs.readFileSync(__dirname+'/../player/layout.js','utf8'),p.context);
+ await p.context.window.fire('wheel');p.context.window.scrollY=20;await p.context.window.fire('scroll');
+ assert.equal(values['--player-header-offset'],'20px');assert.equal(p.document.body.classes.has('player-header-hidden'),false);
+ p.context.window.scrollY=200;await p.context.window.fire('scroll');assert.equal(values['--player-header-offset'],'180px');
+ p.context.window.scrollY=180;await p.context.window.fire('scroll');assert.equal(values['--player-header-offset'],'160px');
+ p.context.window.scrollY=0;await p.context.window.fire('scroll');assert.equal(values['--player-header-offset'],'0px');
+});

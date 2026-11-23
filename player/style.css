@@ -209,3 +209,24 @@ body.player-open{background:#f4f0e8;color:#17233b;--line:#d9d4cb}
  #note-dialog #note-lyric{font-size:1.1rem}
  #note-dialog textarea{min-height:120px}
 }
+
+/* Shared navigation, including the active destination. */
+body .screen-nav.studio-nav{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0;padding:12px 20px;background:#17233b;color:#fff;border:0;font-size:.9rem}
+body .screen-nav.studio-nav>span:first-child{margin-right:auto;letter-spacing:.12em;font-size:.8rem}
+body .screen-nav.studio-nav>a,body .screen-nav.studio-nav>.current-screen{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:44px;padding:8px 16px;line-height:1.2;border:1px solid transparent;border-radius:8px;color:#f4f0e8;background:transparent;text-decoration:none;white-space:nowrap}
+body .screen-nav.studio-nav>[aria-current=page]{background:#e9a45d;color:#17233b;border-color:#e9a45d}
+@media(max-width:599px){body .screen-nav.studio-nav{padding:8px 12px;gap:6px}body .screen-nav.studio-nav>span:first-child{flex-basis:100%;font-size:.7rem}body .screen-nav.studio-nav>a,body .screen-nav.studio-nav>.current-screen{padding:8px 14px}}
+
+.player-mobile-header{display:contents}
+#previous,#next,.section-move{display:inline-flex;align-items:center;justify-content:center}
+#previous::before,#next::before,.section-move::before{content:"";display:block;width:24px;height:24px;background:currentColor;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m14 6-6 6 6 6' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat}
+#next::before{transform:rotate(180deg)}
+.section-move.chevron-up::before{transform:rotate(90deg)}
+.section-move.chevron-down::before{transform:rotate(-90deg)}
+@media(max-width:959px){
+ .player-open .player-mobile-header{display:block;position:sticky;top:calc(-1 * var(--player-header-offset,0px));z-index:4;background:#17233b}
+ .player-page:not(.player-open) .player-mobile-header .player-sidebar{display:none}
+ .player-open .player-mobile-header #screen-nav,.player-open .player-mobile-header .player-sidebar{position:static;transform:none;transition:none}
+ .player-open #player{display:block;padding-top:0}
+ .player-open .player-mobile-header .player-sidebar{margin:0;padding:12px}
+}

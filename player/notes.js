@@ -51,16 +51,16 @@ window.PlayerNotes=(()=>{
   $('notes-mode').addEventListener('click',()=>{showNotes=!showNotes;paint();window.resetPlayerFollow?.();});
   function cancelPress(){clearTimeout(timer);timer=null;press=null;}
   function bind(button,p){
-    const memo=document.createElement('span');
+    let pointerType='';const memo=document.createElement('span');
     memo.className='memo-text';
     memo.hidden=!p.note;memo.textContent=p.note||'';
     button.memoText=memo;button.append(memo);
     button.title='メモ：長押し・右クリック・Shift+F10';
-    memo.addEventListener('click',event=>{event.stopPropagation?.();open(p.id);});
+    memo.addEventListener('click',event=>{event.stopPropagation?.();const suppressed=suppressClick;suppressClick=false;if(!suppressed&&(event.pointerType||pointerType)!=='touch'&&(event.pointerType||pointerType)!=='pen')open(p.id);});
     button.addEventListener('contextmenu',event=>{event.preventDefault();cancelPress();suppressClick=true;open(p.id);});
     button.addEventListener('keydown',event=>{if(event.key==='ContextMenu'||(event.shiftKey&&event.key==='F10')){event.preventDefault();open(p.id);}});
     button.addEventListener('pointerdown',event=>{
-      cancelPress();suppressClick=false;if(event.pointerType==='mouse'||event.isPrimary===false)return;
+      pointerType=event.pointerType;cancelPress();suppressClick=false;if(event.pointerType==='mouse'||event.isPrimary===false)return;
       press={x:event.clientX,y:event.clientY};
       timer=setTimeout(()=>{suppressClick=true;cancelPress();open(p.id);},500);
     });

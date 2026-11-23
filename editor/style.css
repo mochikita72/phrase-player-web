@@ -153,3 +153,17 @@
 .editor-page .audio-panel .editor-volume output{flex:0 0 3.5em;min-width:3.5em;font-size:.75rem;white-space:nowrap;text-align:right;color:#f4f0e8}
 @media(min-width:1200px){.editor-page .audio-panel .editor-volume{grid-column:3;grid-row:2}.editor-page .audio-panel #audio-status{grid-column:1/3;grid-row:2;align-self:center}}
 @media(max-width:1199px){.editor-page .audio-panel .editor-volume{grid-row:3}.editor-page .audio-panel #audio-status:empty{display:none}}
+
+/* Shared navigation, including the active destination. */
+body .screen-nav.studio-nav{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0;padding:12px 20px;background:#17233b;color:#fff;border:0;font-size:.9rem}
+body .screen-nav.studio-nav>span:first-child{margin-right:auto;letter-spacing:.12em;font-size:.8rem}
+body .screen-nav.studio-nav>a,body .screen-nav.studio-nav>.current-screen{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:44px;padding:8px 16px;line-height:1.2;border:1px solid transparent;border-radius:8px;color:#f4f0e8;background:transparent;text-decoration:none;white-space:nowrap}
+body .screen-nav.studio-nav>[aria-current=page]{background:#e9a45d;color:#17233b;border-color:#e9a45d}
+@media(max-width:599px){body .screen-nav.studio-nav{padding:8px 12px;gap:6px}body .screen-nav.studio-nav>span:first-child{flex-basis:100%;font-size:.7rem}body .screen-nav.studio-nav>a,body .screen-nav.studio-nav>.current-screen{padding:8px 14px}}
+
+.editor-page #audio-management>summary{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:48px;padding:10px 14px;border:1px solid #b9c1ce;border-radius:8px;list-style:none;cursor:pointer}
+.editor-page #audio-management>summary::-webkit-details-marker{display:none}
+.editor-page #audio-management>summary::after{content:"";width:9px;height:9px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin-right:4px}
+.editor-page #audio-management[open]>summary::after{transform:rotate(225deg)}
+.editor-page .section-move{width:44px;height:44px;padding:0}
+.editor-page #audio-status:empty{display:none}
