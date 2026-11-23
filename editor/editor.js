@@ -18,6 +18,22 @@ function documentState(){
 }
 const collapsed = new Set();
 const audio = $('audio');
+let editorAudibleVolume=1;
+function editorVolume(persist=false){
+  const value=Math.round(audio.volume*100),silent=audio.muted||value===0;
+  if(value>0)editorAudibleVolume=audio.volume;
+  $('editor-volume').value=value;$('editor-volume-value').textContent=(audio.muted?0:value)+'%';
+  $('editor-mute').textContent=silent?'消音解除':'消音';$('editor-mute').setAttribute('aria-pressed',String(silent));
+  if(persist)try{window.localStorage?.setItem('phrase-studio-volume',JSON.stringify({volume:audio.volume,muted:audio.muted,lastAudibleVolume:editorAudibleVolume}));}catch{}
+}
+audio.volume=1;audio.muted=false;
+try{
+  const saved=JSON.parse(window.localStorage?.getItem('phrase-studio-volume')||'null');
+  if(saved&&Number.isFinite(saved.volume)&&saved.volume>=0&&saved.volume<=1){audio.volume=saved.volume;audio.muted=saved.muted===true;if(saved.lastAudibleVolume>0&&saved.lastAudibleVolume<=1)editorAudibleVolume=saved.lastAudibleVolume;}
+}catch{}
+$('editor-volume').addEventListener('input',()=>{audio.volume=Math.max(0,Math.min(100,Number($('editor-volume').value)))/100;audio.muted=false;editorVolume(true);});
+$('editor-mute').addEventListener('click',()=>{if(audio.muted||audio.volume===0){audio.muted=false;if(audio.volume===0)audio.volume=editorAudibleVolume;}else audio.muted=true;editorVolume(true);});
+audio.addEventListener('volumechange',()=>editorVolume());editorVolume();
 function error(message = '') {
   $('error').textContent = message; $('error').hidden = !message;
   if(message && $('audio-status').textContent === '音源を読み込み中…') $('audio-status').textContent = '音源の読み込み状況を確認してください';
@@ -177,7 +193,7 @@ $('json-file').addEventListener('change', async event => {
     if(!previous)try{previous=await Library.get(data.songId);if(previous&&!confirm(`端末内の「${previous.song.title||'無題の曲'}」（ID: ${data.songId}）の更新として「${data.title||'無題の曲'}」を読み込みますか？保存時に置き換えます。`))return;}catch(e){notice(e.message,false);}
     if(!previous&&!record.revision&&record.audios.length)previous={...record,revision:0};
     if(generation!==importGeneration)return;
-    engine.stopAt = null; audio.pause(); song = data;record=Library.fromSong(song,previous);record.activeAudioId=record.audios[0]?.id||''; sectionIndex = 0; selected = null; dirty = true;editVersion++;savedVersion=-1;saveFailed=false;backupState='JSONから読み込み済み';metadata(); render();sources.render();switchSource(record.activeAudioId,true); error();$('import-result').textContent=`JSON「${song.title||'無題の曲'}」を読み込みました。`;$('json-import-result').textContent=$('import-result').textContent;notice('端末内へはまだ保存していません。');
+    engine.stopAt = null; audio.pause(); song = data;record=Library.fromSong(song,previous);song=record.song;record.activeAudioId=record.audios[0]?.id||''; sectionIndex = 0; selected = null; dirty = true;editVersion++;savedVersion=-1;saveFailed=false;backupState='JSONから読み込み済み';metadata(); render();sources.render();switchSource(record.activeAudioId,true); error();$('import-result').textContent=`JSON「${song.title||'無題の曲'}」を読み込みました。`;$('json-import-result').textContent=$('import-result').textContent;notice('端末内へはまだ保存していません。');
   } catch(e) { if(generation === importGeneration) error(e.message); }
   finally { event.target.value = ''; }
 });

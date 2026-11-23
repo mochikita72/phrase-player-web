@@ -11,12 +11,14 @@
     if (position <= 0 || position >= p.text.length || !p.text.slice(0, position).trim() || !p.text.slice(position).trim()) throw new Error('歌詞の途中にカーソルを置いてください。');
     const left = {id:id(song), text:p.text.slice(0, position), start:p.start ?? null};
     const right = {id:id(song), text:p.text.slice(position), start:null};
+    if(p.note!==undefined)left.note=p.note;
     list.splice(index, 1, left, right); return left;
   }
   function merge(song, sectionIndex, index) {
     const list = song.sections[sectionIndex].phrases, p = list[index], next = list[index + 1];
     if (!next) throw new Error('同じセクションに次のフレーズがありません。');
     const result = {id:id(song), text:`${p.text}\n${next.text}`, start:p.start ?? null};
+    if(p.note!==undefined||next.note!==undefined)result.note=[p.note,next.note].filter(Boolean).join('\n');
     list.splice(index, 2, result); return result;
   }
   const hasStart = phrase => Number.isFinite(phrase.start) && phrase.start >= 0;

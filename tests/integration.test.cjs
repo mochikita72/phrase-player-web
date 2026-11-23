@@ -50,7 +50,7 @@ test('JSON-only update retains audio, audio-only replacement retains lyrics; del
 });
 test('unspecified starts remain visible and saveable, duplicate starts reject, HTML stays text',async()=>{
   const data=structuredClone(sample);data.sections[0].phrases[0].start=null;data.sections[0].phrases[0].text='<img src=x onerror=alert(1)>';
-  const a=await app('player');await a.json(data);await a.sound();const row=a.elements.lyrics.children[0].children[1];assert.equal(row.disabled,true);assert.equal(row.children[1].textContent,data.sections[0].phrases[0].text);
+  const a=await app('player');await a.json(data);await a.sound();const row=a.elements.lyrics.children[0].children[1];assert.equal(row.attributes['aria-disabled'],'true');assert.equal(row.children[1].textContent,data.sections[0].phrases[0].text);
   assert.match(a.elements['phrase-note'].textContent,/未設定/);await a.elements['save-library'].click();assert.equal(a.read('record.revision'),1);
   const bad=structuredClone(sample);bad.sections[0].phrases[1].start=0;await a.json(bad);assert.match(a.elements.error.textContent,/重複/);
 });

@@ -31,7 +31,7 @@ test('highlight follows time, never retains manual selection; offset loop uses s
  assert.equal(p.audio.currentTime,6);p.audio.currentTime=8.01;await p.audio.fire('timeupdate');assert.equal(p.audio.currentTime,4);
 });
 test('following scrolls only on phrase changes; manual scroll suspends until explicit resume',async()=>{
- const p=await app('player');const moves=[];
+ const p=await app('player');await p.json();await p.sound();const moves=[];
  p.context.window.innerHeight=800;p.context.window.scrollY=0;p.context.window.matchMedia=()=>({matches:false});p.context.window.scrollTo=value=>moves.push(value);
  p.elements['full-controller'].getBoundingClientRect=()=>({top:650});
  p.document.querySelector=()=>({getBoundingClientRect:()=>({bottom:100})});

@@ -85,10 +85,30 @@
     return song;
   }
   function fromSong(song, previous = null) {
+    song=structuredClone(song);
+    // Importing lyrics must not erase local lesson notes, including intentional empty notes.
+    if(previous?.id===song.songId){
+      if(Object.hasOwn(previous.song,'note'))song.note=previous.song.note;
+      const old=new Map(Phrase.flatten(previous.song).map(p=>[p.id,p]));
+      for(const p of Phrase.flatten(song))if(old.has(p.id)&&Object.hasOwn(old.get(p.id),'note'))p.note=old.get(p.id).note;
+    }
     const sources = [...(song.audioSources || [])];
     for(const source of previous?.audios || [])if(!sources.some(a=>a.id===source.id))sources.push({id:source.id,name:source.name,offset:source.offset});
     const audios = sources.map(source=>({...previous?.audios.find(a=>a.id===source.id),...source}));
     return {id:song.songId,song:structuredClone(song),audios,activeAudioId:previous?.activeAudioId || audios[0]?.id || '',revision:previous?.revision || 0};
+  }
+  async function saveNote(id,phraseId,note,expectedRevision){
+    if(typeof note!=='string')throw new Error('メモは文字列で入力してください。');
+    return transaction(['songs'],'readwrite',(tx,done,abort)=>{
+      const store=tx.objectStore('songs'),request=store.get(id);
+      request.onsuccess=()=>{
+        const value=request.result;
+        if(!value||value.revision!==expectedRevision){abort(new Error('別の画面で曲が更新されています。メモをコピーして保管し、曲を開き直してください。'));return;}
+        const target=phraseId===null?value.song:Phrase.flatten(value.song).find(p=>p.id===phraseId);
+        if(!target){abort(new Error('対象フレーズが見つかりません。メモをコピーして保管してください。'));return;}
+        target.note=note;value.revision++;store.put(value);done(value.revision);
+      };
+    });
   }
   function filename(title,date=new Date()) {
     const pad=n=>String(n).padStart(2,'0');
@@ -108,6 +128,6 @@
     try { saved=await save(record); } catch(e) {dbError=e.message;}
     return {jsonStarted,jsonError,saved,dbError,message:[jsonStarted?'JSONのダウンロードを開始。保存先を確認してください。':`JSON書き出し失敗：${jsonError}`,saved?'端末内データは更新済み。JSONの保存完了は未確認です。':`端末内保存に失敗：${dbError}`,Phrase.warnings(record.song)].filter(Boolean).join('\n')};
   }
-  const api={get,list,move,last,remember,save,remove,fromSong,exportSong,download,saveBoth,storageError,filename};
+  const api={get,list,move,last,remember,save,saveNote,remove,fromSong,exportSong,download,saveBoth,storageError,filename};
   root.Library=api; if(typeof module!=='undefined') module.exports=api;
 })(globalThis);

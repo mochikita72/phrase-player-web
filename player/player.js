@@ -54,9 +54,9 @@ function rebuild(){
     const group=document.createElement('section'), h=document.createElement('h2');h.textContent=section.name;group.append(h);
     for(const row of section.phrases){
       const i=index++,p=phrases[i],b=document.createElement('button'),time=document.createElement('time'),text=document.createElement('span');
-      b.className='phrase';b.disabled=!engine.ready||!p.playable;
+      b.className='phrase';b.disabled=false;b.setAttribute('aria-disabled',String(!engine.ready||!p.playable));b.dataset.phraseId=row.id;
       time.textContent=!Phrase.isTimed(row)?'時刻未設定':!p.playable?'範囲外':Phrase.format(row.start);text.textContent=row.text;
-      b.append(time,text);b.addEventListener('click',()=>playPhrase(i));group.append(b);buttons.push(b);
+      b.append(time,text);b.addEventListener('click',event=>{if(!window.PlayerNotes?.consumeClick(event))playPhrase(i);});window.PlayerNotes?.bind(b,row);group.append(b);buttons.push(b);
     }$('lyrics').append(group);
   }
   $('phrase-note').textContent=phrases.length?Phrase.warnings(record.song,engine.ready?audio.duration:Infinity,currentOffset):'フレーズはまだありません。音源の再生は利用できます。歌詞はEditorで追加できます。';
@@ -109,8 +109,8 @@ async function refreshList(){
       for(const [direction,label] of [[-1,'上へ'],[1,'下へ']]){const button=document.createElement('button');button.className='secondary';button.textContent=direction<0?'↑':'↓';button.title=label;button.setAttribute('aria-label',(song.title||'無題の曲')+'を'+label);const index=songs.indexOf(song);button.disabled=index+direction<0||index+direction>=songs.length;button.addEventListener('click',async()=>{button.disabled=true;try{await Library.move(song.id,direction);await refreshList();}catch(e){error(e.message);button.disabled=false;}});order.append(button);}row.append(order);$('song-cards').append(row);}
   }catch(e){error(e.message);}
 }
-function canLeave(){return !saving&&(!dirty||confirm('未保存の変更があります。移動すると変更が失われます。続けますか？'));}
-function setRecord(value){Phrase.validate(value.song);$('library-view').hidden=true;viewGeneration++;audioGeneration++;importGeneration++;record=value;error();record.activeAudioId=record.audios[0]?.id||'';chosen=-1;dirty=false;switchPoint=null;pendingAudio=null;$('manage').open=false;sources.render();switchSource(record.activeAudioId,true);}
+function canLeave(){if(window.PlayerNotes?.pending()){error('メモの保存完了をお待ちください。失敗時はメモを再試行またはコピーして保管してください。');return false;}return !saving&&(!dirty||confirm('未保存の変更があります。移動すると変更が失われます。続けますか？'));}
+function setRecord(value){Phrase.validate(value.song);window.resetPlayerHeader?.();$('library-view').hidden=true;viewGeneration++;audioGeneration++;importGeneration++;record=value;error();record.activeAudioId=record.audios[0]?.id||'';chosen=-1;dirty=false;switchPoint=null;pendingAudio=null;$('manage').open=false;sources.render();switchSource(record.activeAudioId,true);}
 async function openSaved(id){
   if(!id||!canLeave()){$('song-select').value=record?.id||'';return;}
   const generation=++viewGeneration;
@@ -123,9 +123,9 @@ $('new-song').addEventListener('click',()=>{
   $('player').hidden=true;$('manage').open=true;$('audio-file').value=$('json-file').value='';$('audio-status').textContent='音源を選択してください';$('json-status').textContent='JSONを選択してください';sources.render();status('JSONと音源を選択してください。');error();
 });
 function showLibrary(){viewGeneration++;$('screen-nav').hidden=true;audio.pause();$('library-view').hidden=false;$('player').hidden=true;$('compact-player').hidden=true;document.body.classList.toggle('player-open',false);status('');error();void refreshList();window.scrollTo(0,0);}
-$('change').addEventListener('click',event=>{event.preventDefault?.();showLibrary();});
+$('change').addEventListener('click',event=>{event.preventDefault?.();if(canLeave())showLibrary();});
 $('reload-library').addEventListener('click',refreshList);
-$('open-editor').addEventListener('click',event=>{if(dirty||saving){event.preventDefault?.();$('edit').click();}});
+$('open-editor').addEventListener('click',event=>{if(window.PlayerNotes?.pending()){event.preventDefault?.();canLeave();return;}if(dirty||saving){event.preventDefault?.();$('edit').click();}});
 $('audio-file').addEventListener('change',async event=>{
   const file=event.target.files[0];if(!file)return;const generation=++audioGeneration;viewGeneration++;error();$('audio-status').textContent='音源を確認しています…';
   try{const duration=await Sources.probe(file);if(generation!==audioGeneration)return;pendingAudio={file,duration};$('audio-status').textContent=`${file.name} 読み込み完了`;
@@ -187,7 +187,7 @@ $('compact-previous').addEventListener('click',()=>move(-1));$('compact-next').a
 $('compact-play').addEventListener('click',()=>$('play').click());
 $('compact-source-select').addEventListener('change',()=>switchSource($('compact-source-select').value));
 window.addEventListener('focus',()=>{if(!$('library-view').hidden)void refreshList();});
-window.addEventListener('beforeunload',e=>{if(dirty||saving){e.preventDefault();e.returnValue='';}});
-window.addEventListener('pageshow',event=>{if(event.persisted&&!dirty){engine.reset();record=null;void boot();}});
+window.addEventListener('beforeunload',e=>{if(dirty||saving||window.PlayerNotes?.pending()){e.preventDefault();e.returnValue='';}});
+window.addEventListener('pageshow',event=>{if(event.persisted&&!dirty&&!window.PlayerNotes?.pending()){engine.reset();record=null;void boot();}});
 async function boot(){$('screen-nav').hidden=true;$('library-view').hidden=false;if(new URLSearchParams(location.search).get('view')==='library'){showLibrary();return;}const generation=++viewGeneration;await refreshList();if(generation!==viewGeneration)return;try{const id=new URLSearchParams(location.search).get('song')||await Library.last();if(generation!==viewGeneration||record||dirty||pendingAudio)return;if(id){await openSaved(id);if(!record)showLibrary();}else showLibrary();}catch(e){error(e.message);}}
 sources.render();update();void boot();

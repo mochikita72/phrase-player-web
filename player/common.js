@@ -6,6 +6,7 @@
     const object = value => value && typeof value === 'object' && !Array.isArray(value);
     const string = (value, name) => { if (typeof value !== 'string' || !value.trim()) fail(`${name}には空でない文字列が必要です。`); };
     if (!object(data)) fail('曲データはJSONオブジェクトにしてください。');
+    if(data.note!==undefined&&typeof data.note!=='string')fail('曲メモは文字列にしてください。');
     if (data.schemaVersion !== 1) fail('schemaVersionは数値の1のみ対応しています。');
     string(data.songId, 'songId');
     for(const key of ['title','artist']) if(typeof data[key] !== 'string') fail(`${key}は文字列にしてください。`);
@@ -19,6 +20,7 @@
       section.phrases.forEach((phrase, i) => {
         const label = `${section.name}・${i + 1}行目`;
         if (!object(phrase)) fail(`${label}の形式が不正です。`);
+        if(phrase.note!==undefined&&typeof phrase.note!=='string')fail(`${label}のメモは文字列にしてください。`);
         string(phrase.id, `${label}のID`); string(phrase.text, `${label}の歌詞`);
         if (ids.has(phrase.id)) fail(`フレーズID「${phrase.id}」が重複しています。`);
         ids.add(phrase.id);

@@ -143,3 +143,7 @@
 
 @media(min-width:960px) and (min-height:681px){.editor-page .selection-heading{position:sticky;top:calc(var(--audition-height,120px) + 8px);z-index:1;background:var(--ivory);padding:8px 0}}
 @media(max-width:600px){.editor-page #leave-dialog .actions>button{flex:0 0 auto;width:100%;min-height:44px}}
+.editor-page .editor-volume{display:flex;align-items:center;gap:8px;grid-column:1/-1;min-width:0;font-size:.8rem}
+.editor-page .editor-volume button{min-height:44px;min-width:64px;padding:6px 8px}
+.editor-page .editor-volume input{width:min(180px,40vw);min-width:40px;accent-color:#e9a45d}
+.editor-page .editor-volume output{min-width:3.5em;font-variant-numeric:tabular-nums}

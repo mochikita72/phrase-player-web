@@ -4,7 +4,7 @@ const path = require('node:path');
 const {createHash} = require('node:crypto');
 const root = path.resolve(__dirname,'..');
 const files = ['index.html','.nojekyll','THIRD-PARTY.md',
-  ...['index.html','style.css','common.js','library.js','sources.js','player.js','layout.js'].map(f=>`player/${f}`),
+  ...['index.html','style.css','common.js','library.js','sources.js','player.js','notes.js','layout.js'].map(f=>`player/${f}`),
   ...['index.html','style.css','model.js','editor.js','ocr.js','layout.js'].map(f=>`editor/${f}`),
   ...['tesseract.min.js','worker.min.js','LICENSE.md'].map(f=>`editor/vendor/tesseract/${f}`),
   ...['','-simd','-lstm','-simd-lstm'].flatMap(s=>['wasm','wasm.js'].map(ext=>`editor/vendor/core/tesseract-core${s}.${ext}`)),
